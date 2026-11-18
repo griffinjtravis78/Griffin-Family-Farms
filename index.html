@@ -12,11 +12,38 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- JsBarcode for UPC/Barcode generation -->
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    
+    <!-- Thermal Printer CSS Fix for Clabel CT221D (2" x 1") -->
+    <style>
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #printableLabel, #printableLabel * {
+                visibility: visible;
+            }
+            #printableLabel {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 50mm;
+                height: 25mm;
+                margin: 0;
+                padding: 2mm;
+                text-align: center;
+                background: white;
+            }
+            @page {
+                size: 50mm 25mm;
+                margin: 0;
+            }
+        }
+    </style>
 </head>
 <body class="bg-slate-50 text-slate-950 font-sans antialiased" x-data="farmApp()">
 
-    <!-- Navigation Header -->
-    <header class="bg-emerald-800 text-white shadow-md sticky top-0 z-50">
+    <!-- Navigation Header (Hidden on Print) -->
+    <header class="bg-emerald-800 text-white shadow-md sticky top-0 z-50 print:hidden">
         <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
             <div>
                 <h1 class="text-lg font-bold tracking-tight">🌱 Griffin Family Farms</h1>
@@ -31,15 +58,15 @@
     </header>
 
     <!-- Main Container -->
-    <main class="max-w-7xl mx-auto px-4 py-6">
+    <main class="max-w-7xl mx-auto px-4 py-6 print:p-0">
 
         <!-- ERROR / SUCCESS ALERTS -->
         <template x-if="alertMessage">
-            <div class="mb-4 p-4 rounded-lg text-sm font-medium" :class="alertType === 'error' ? 'bg-red-100 text-red-800 border border-red-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'" x-text="alertMessage"></div>
+            <div class="mb-4 p-4 rounded-lg text-sm font-medium print:hidden" :class="alertType === 'error' ? 'bg-red-100 text-red-800 border border-red-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'" x-text="alertMessage"></div>
         </template>
 
         <!-- TAB 1: DASHBOARD (Today's Actions) -->
-        <div x-show="activeTab === 'dashboard'" class="space-y-6">
+        <div x-show="activeTab === 'dashboard'" class="space-y-6 print:hidden">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
                     <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Active Trays in Room</h3>
@@ -84,9 +111,9 @@
         </div>
 
         <!-- TAB 2: SOW NEW BATCH (UPC Label Generator) -->
-        <div x-show="activeTab === 'sow'" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 max-w-2xl mx-auto">
-            <h2 class="text-xl font-bold text-slate-800 mb-6">🌱 Sow New Batch & Generate UPC Tray Label</h2>
-            <form @submit.prevent="sowBatch" class="space-y-4">
+        <div x-show="activeTab === 'sow'" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 max-w-2xl mx-auto print:border-none print:shadow-none print:p-0">
+            <h2 class="text-xl font-bold text-slate-800 mb-6 print:hidden">🌱 Sow New Batch & Generate UPC Tray Label</h2>
+            <form @submit.prevent="sowBatch" class="space-y-4 print:hidden">
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">Select Crop Variety</label>
                     <select x-model="newBatch.crop_id" @change="onCropSelect()" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500" required>
@@ -119,14 +146,15 @@
 
             <!-- UPC Barcode Preview Modal / Card -->
             <template x-if="lastCreatedBatch">
-                <div class="mt-8 p-6 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-center space-y-4">
-                    <h3 class="font-bold text-slate-800">🖨️ Tray UPC Label Ready for CT221D Printer</h3>
-                    <div class="bg-white p-4 inline-block rounded shadow-sm">
+                <div class="mt-8 p-6 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-center space-y-4 print:mt-0 print:p-0 print:border-none">
+                    <h3 class="font-bold text-slate-800 print:hidden">🖨️ Tray UPC Label Ready for CT221D Printer</h3>
+                    <div id="printableLabel" class="bg-white p-3 inline-block rounded shadow-sm print:shadow-none print:p-0">
+                        <p class="text-[10px] font-bold text-slate-900">GRIFFIN FAMILY FARMS</p>
                         <svg id="barcodeElement"></svg>
-                        <p class="text-xs font-mono font-bold mt-2" x-text="lastCreatedBatch.upc_code"></p>
-                        <p class="text-xs text-slate-600 font-medium" x-text="lastCreatedBatch.batch_code + ' | ' + lastCreatedBatch.lot_code"></p>
+                        <p class="text-[9px] font-mono font-bold mt-0.5" x-text="lastCreatedBatch.upc_code"></p>
+                        <p class="text-[9px] text-slate-700 font-medium" x-text="lastCreatedBatch.batch_code + ' | ' + lastCreatedBatch.rack_location"></p>
                     </div>
-                    <div>
+                    <div class="print:hidden">
                         <button @click="printLabel()" class="px-4 py-2 bg-slate-800 text-white text-xs font-semibold rounded hover:bg-slate-900 transition">Print Label on Thermal Printer</button>
                     </div>
                 </div>
@@ -134,7 +162,7 @@
         </div>
 
         <!-- TAB 3: ACTIVE BATCHES TABLE -->
-        <div x-show="activeTab === 'batches'" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div x-show="activeTab === 'batches'" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 print:hidden">
             <h2 class="text-base font-bold text-slate-800 mb-4">📦 Active Growing Trays</h2>
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm text-slate-600">
@@ -179,7 +207,6 @@
 
     <!-- Supabase Connection & App Logic -->
     <script>
-        // REPLACE WITH YOUR SUPABASE CREDENTIALS
         const SUPABASE_URL = 'https://aldojeedzthqkwuldear.supabase.co';
         const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_GnEz9jqLX008UL0Et6sBMQ_Tq2zCNbX';
         
@@ -227,7 +254,6 @@
                         this.batches = data || [];
                         this.queueBatches = this.batches.filter(b => b.status === 'germination' || b.status === 'lit');
                         
-                        // Compute Stats
                         this.stats.activeTrays = this.batches.filter(b => b.status !== 'harvested' && b.status !== 'culled').length;
                         this.stats.dueUncover = this.batches.filter(b => b.status === 'germination').length;
                         this.stats.dueHarvest = this.batches.filter(b => b.status === 'lit').length;
@@ -246,7 +272,6 @@
                     const batchCode = `GFF-${dateStr}-${this.selectedCrop.name.slice(0,3).toUpperCase()}-${randomId}`;
                     const upcCode = `8500${Math.floor(100000000 + Math.random() * 900000000)}`;
 
-                    // Calculate target harvest date (germination + grow out days)
                     const totalDays = this.selectedCrop.germination_days + this.selectedCrop.grow_out_days;
                     const targetHarvest = new Date();
                     targetHarvest.setDate(targetHarvest.getDate() + totalDays);
@@ -271,17 +296,16 @@
                         this.lastCreatedBatch = data;
                         await this.fetchBatches();
 
-                        // Generate Barcode on screen for Clabel CT221D thermal printing
                         setTimeout(() => {
                             JsBarcode("#barcodeElement", data.upc_code, {
                                 format: "CODE128",
-                                width: 2,
-                                height: 50,
-                                displayValue: true
+                                width: 1.5,
+                                height: 35,
+                                displayValue: true,
+                                fontSize: 10
                             });
                         }, 100);
 
-                        // Reset form
                         this.newBatch.rack_location = '';
                     }
                 },
@@ -308,20 +332,7 @@
                 },
 
                 printLabel() {
-                    const printWindow = window.open('', '_blank');
-                    printWindow.document.write(`
-                        <html>
-                        <head><title>Print UPC Label - CT221D</title></head>
-                        <body style="text-align:center; font-family:monospace; margin-top:20px;">
-                            <h3>GRIFFIN FAMILY FARMS</h3>
-                            <p>${this.lastCreatedBatch.batch_code}</p>
-                            <div>${document.querySelector('.bg-white.p-4.inline-block').innerHTML}</div>
-                            <p>${this.lastCreatedBatch.lot_code}</p>
-                            <script>window.print(); window.close();<\/script>
-                        </body>
-                        </html>
-                    `);
-                    printWindow.document.close();
+                    window.print();
                 }
             }
         }
