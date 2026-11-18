@@ -13,7 +13,7 @@
     <!-- JsBarcode for UPC/Barcode generation -->
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     
-    <!-- Restored 2" x 1" Landscape Thermal Label CSS (Proven Orientation) -->
+    <!-- Proven 2" x 1" Landscape Thermal Label CSS for Clabel CT221D -->
     <style>
         @media print {
             body * {
@@ -128,14 +128,21 @@
                     </select>
                 </div>
 
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Rack & Shelf Location</label>
-                    <input type="text" x-model="newBatch.rack_location" placeholder="e.g., Rack 01 - Shelf 3" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" required>
+                <!-- Separate Rack and Shelf Inputs -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Rack (# or Letter)</label>
+                        <input type="text" x-model="newBatch.rack" placeholder="e.g., 1 or A" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Shelf (# or Letter)</label>
+                        <input type="text" x-model="newBatch.shelf" placeholder="e.g., 3 or B" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" required>
+                    </div>
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">Custom Lot Code (for Traceability)</label>
-                    <input type="text" x-model="newBatch.lot_code" placeholder="e.g., LOT 111726-A" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" required>
+                    <input type="text" x-model="newBatch.lot_code" placeholder="e.g., LOT 1118-A" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" required>
                 </div>
 
                 <div class="p-4 bg-emerald-50 rounded-lg border border-emerald-100 text-sm text-emerald-900 space-y-1">
@@ -152,15 +159,22 @@
             <template x-if="lastCreatedBatch">
                 <div class="mt-8 p-6 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-center space-y-4 print:mt-0 print:p-0 print:border-none">
                     <h3 class="font-bold text-slate-800 print:hidden">🖨️ Tray UPC Label Ready for CT221D Printer (2" x 1")</h3>
-                    <!-- Proven 2in x 1in horizontal sticker layout -->
+                    
+                    <!-- 4-Line Thermal Sticker Layout -->
                     <div id="printableLabel" class="bg-white inline-block rounded shadow-sm print:shadow-none print:p-0" style="width: 2in; height: 1in; box-sizing: border-box; padding: 1.5px; display: flex; flex-direction: column; justify-content: space-between; align-items: center;">
-                        <p style="font-size: 10.5pt; font-weight: 900; line-height: 1; margin: 0; color: #000; letter-spacing: 0.4px;">GRIFFIN FAMILY FARMS</p>
-                        <svg id="barcodeElement" style="width: 1.85in; height: 0.40in; display: block; margin: 0 auto;"></svg>
-                        <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 2px; box-sizing: border-box;">
-                            <span style="font-size: 9.5pt; font-family: monospace; font-weight: 800; line-height: 1; margin: 0;" x-text="lastCreatedBatch.upc_code"></span>
-                            <span style="font-size: 9.5pt; font-weight: 800; line-height: 1; margin: 0;" x-text="lastCreatedBatch.batch_code + ' | ' + lastCreatedBatch.rack_location"></span>
-                        </div>
+                        <!-- Line 1: Farm Name -->
+                        <p style="font-size: 10pt; font-weight: 900; line-height: 1; margin: 0; color: #000; letter-spacing: 0.3px;">GRIFFIN FAMILY FARMS</p>
+                        
+                        <!-- Line 2: Barcode -->
+                        <svg id="barcodeElement" style="width: 1.85in; height: 0.34in; display: block; margin: 0 auto;"></svg>
+                        
+                        <!-- Line 3: Barcode Number -->
+                        <p style="font-size: 8.5pt; font-family: monospace; font-weight: 800; line-height: 1; margin: 0; color: #000;" x-text="lastCreatedBatch.upc_code"></p>
+                        
+                        <!-- Line 4: Sow Date + Product Abbreviation + Rack [X] Shelf [Y] -->
+                        <p style="font-size: 8.5pt; font-weight: 900; line-height: 1; margin: 0; color: #000;" x-text="formatShortLabelInfo(lastCreatedBatch)"></p>
                     </div>
+
                     <div class="print:hidden">
                         <button @click="printLabel()" class="px-4 py-2 bg-slate-800 text-white text-xs font-semibold rounded hover:bg-slate-900 transition">Print Label on Thermal Printer</button>
                     </div>
@@ -168,28 +182,31 @@
             </template>
         </div>
 
-        <!-- TAB 3: ACTIVE BATCHES TABLE -->
+        <!-- TAB 3: ACTIVE BATCHES TABLE (Upgraded Lifecycle & Reprint Controls) -->
         <div x-show="activeTab === 'batches'" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 print:hidden">
-            <h2 class="text-base font-bold text-slate-800 mb-4">📦 Active Growing Trays</h2>
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-base font-bold text-slate-800">📦 Active Growing Trays & Lifecycle Management</h2>
+                <span class="text-xs text-slate-500" x-text="'Showing ' + batches.length + ' total batches'"></span>
+            </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm text-slate-600">
                     <thead class="bg-slate-100 text-slate-700 text-xs uppercase font-semibold">
                         <tr>
                             <th class="p-3">Batch Code</th>
                             <th class="p-3">Crop</th>
-                            <th class="p-3">Location</th>
-                            <th class="p-3">Status</th>
-                            <th class="p-3">Sown Date</th>
-                            <th class="p-3">Target Harvest</th>
-                            <th class="p-3">Actions</th>
+                            <th class="p-3">Rack & Shelf</th>
+                            <th class="p-3">Stage</th>
+                            <th class="p-3">Sown</th>
+                            <th class="p-3">Harvest</th>
+                            <th class="p-3 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-200">
                         <template x-for="batch in batches" :key="batch.id">
-                            <tr>
+                            <tr class="hover:bg-slate-50 transition">
                                 <td class="p-3 font-mono font-bold text-slate-900" x-text="batch.batch_code"></td>
                                 <td class="p-3 font-medium text-slate-800" x-text="batch.crops?.name"></td>
-                                <td class="p-3" x-text="batch.rack_location"></td>
+                                <td class="p-3 font-medium" x-text="batch.rack_location"></td>
                                 <td class="p-3">
                                     <span class="px-2 py-0.5 text-xs font-semibold rounded capitalize" :class="{
                                         'bg-amber-100 text-amber-800': batch.status === 'germination',
@@ -200,8 +217,15 @@
                                 </td>
                                 <td class="p-3" x-text="new Date(batch.sown_date).toLocaleDateString()"></td>
                                 <td class="p-3" x-text="new Date(batch.target_harvest_date).toLocaleDateString()"></td>
-                                <td class="p-3 flex gap-2">
-                                    <button @click="deleteBatch(batch.id)" class="text-red-600 hover:text-red-800 text-xs font-medium">Delete</button>
+                                <td class="p-3 flex justify-end items-center gap-2">
+                                    <template x-if="batch.status === 'germination'">
+                                        <button @click="updateBatchStatus(batch.id, 'lit')" class="px-2.5 py-1 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 transition">Move to Light</button>
+                                    </template>
+                                    <template x-if="batch.status === 'lit'">
+                                        <button @click="updateBatchStatus(batch.id, 'harvested')" class="px-2.5 py-1 bg-emerald-600 text-white text-xs font-semibold rounded hover:bg-emerald-700 transition">Harvest</button>
+                                    </template>
+                                    <button @click="reprintBatch(batch)" class="px-2.5 py-1 bg-slate-700 text-white text-xs font-semibold rounded hover:bg-slate-800 transition">Reprint UPC</button>
+                                    <button @click="deleteBatch(batch.id)" class="text-red-600 hover:text-red-800 text-xs font-medium px-1">Delete</button>
                                 </td>
                             </tr>
                         </template>
@@ -232,7 +256,8 @@
                 stats: { activeTrays: 0, dueHarvest: 0, dueUncover: 0 },
                 newBatch: {
                     crop_id: '',
-                    rack_location: '',
+                    rack: '',
+                    shelf: '',
                     lot_code: 'LOT ' + new Date().toISOString().slice(5,10).replace(/-/g,'') + '-A'
                 },
 
@@ -245,6 +270,43 @@
                     this.alertMessage = msg;
                     this.alertType = type;
                     setTimeout(() => { this.alertMessage = ''; }, 4000);
+                },
+
+                // Ensures "Rack <value> Shelf <value>" always appears cleanly
+                formatLocationLabel(rackVal, shelfVal) {
+                    const cleanRack = (rackVal || '').replace(/^rack\s*/i, '').trim();
+                    const cleanShelf = (shelfVal || '').replace(/^shelf\s*/i, '').trim();
+                    const rackPart = cleanRack ? `Rack ${cleanRack}` : '';
+                    const shelfPart = cleanShelf ? `Shelf ${cleanShelf}` : '';
+                    return [rackPart, shelfPart].filter(Boolean).join(' ');
+                },
+
+                // Builds Line 4: "YYMMDD-CROP | Rack <X> Shelf <Y>"
+                formatShortLabelInfo(batch) {
+                    if (!batch) return '';
+                    const parts = (batch.batch_code || '').split('-');
+                    const dateAndCrop = parts.length >= 3 ? `${parts[1]}-${parts[2]}` : batch.batch_code;
+
+                    // If already saved as "Rack X Shelf Y", keep it; otherwise parse legacy "X - Y"
+                    let locFormatted = batch.rack_location || '';
+                    if (locFormatted && !/^rack\s/i.test(locFormatted)) {
+                        const splitLoc = locFormatted.split(' - ');
+                        locFormatted = this.formatLocationLabel(splitLoc[0], splitLoc[1]);
+                    }
+
+                    return `${dateAndCrop} | ${locFormatted}`;
+                },
+
+                renderBarcode(upcCode) {
+                    setTimeout(() => {
+                        JsBarcode("#barcodeElement", upcCode, {
+                            format: "CODE128",
+                            width: 1.2,
+                            height: 18,
+                            displayValue: false,
+                            margin: 0
+                        });
+                    }, 100);
                 },
 
                 async fetchCrops() {
@@ -278,6 +340,7 @@
                     const randomId = Math.floor(10 + Math.random() * 90);
                     const batchCode = `GFF-${dateStr}-${this.selectedCrop.name.slice(0,3).toUpperCase()}-${randomId}`;
                     const upcCode = `8500${Math.floor(100000000 + Math.random() * 900000000)}`;
+                    const combinedLocation = this.formatLocationLabel(this.newBatch.rack, this.newBatch.shelf);
 
                     const totalDays = this.selectedCrop.germination_days + this.selectedCrop.grow_out_days;
                     const targetHarvest = new Date();
@@ -287,7 +350,7 @@
                         batch_code: batchCode,
                         upc_code: upcCode,
                         crop_id: this.newBatch.crop_id,
-                        rack_location: this.newBatch.rack_location,
+                        rack_location: combinedLocation,
                         status: 'germination',
                         target_harvest_date: targetHarvest.toISOString(),
                         lot_code: this.newBatch.lot_code,
@@ -302,19 +365,20 @@
                         this.showAlert('Batch successfully sown and registered in database!');
                         this.lastCreatedBatch = data;
                         await this.fetchBatches();
+                        this.renderBarcode(data.upc_code);
 
-                        setTimeout(() => {
-                            JsBarcode("#barcodeElement", data.upc_code, {
-                                format: "CODE128",
-                                width: 1.2,
-                                height: 20,
-                                displayValue: false,
-                                margin: 0
-                            });
-                        }, 100);
-
-                        this.newBatch.rack_location = '';
+                        this.newBatch.rack = '';
+                        this.newBatch.shelf = '';
                     }
+                },
+
+                reprintBatch(batch) {
+                    this.lastCreatedBatch = batch;
+                    this.activeTab = 'sow';
+                    this.renderBarcode(batch.upc_code);
+                    setTimeout(() => {
+                        window.print();
+                    }, 250);
                 },
 
                 async updateBatchStatus(id, newStatus) {
