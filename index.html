@@ -13,7 +13,7 @@
     <!-- JsBarcode for UPC/Barcode generation -->
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     
-    <!-- Proven 2" x 1" Landscape Thermal Label CSS for Clabel CT221D -->
+    <!-- Locked-In 2" x 1" Landscape Thermal Label CSS for Clabel CT221D -->
     <style>
         @media print {
             body * {
@@ -48,15 +48,17 @@
 
     <!-- Navigation Header (Hidden on Print) -->
     <header class="bg-emerald-800 text-white shadow-md sticky top-0 z-50 print:hidden">
-        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-2">
             <div>
                 <h1 class="text-lg font-bold tracking-tight">🌱 Griffin Family Farms</h1>
                 <p class="text-xs text-emerald-200">Indoor Crop & UPC Tray Tracker</p>
             </div>
-            <nav class="flex gap-2">
+            <nav class="flex flex-wrap gap-2">
                 <button @click="activeTab = 'dashboard'" :class="activeTab === 'dashboard' ? 'bg-emerald-900' : 'hover:bg-emerald-700'" class="px-3 py-1.5 rounded text-sm font-medium transition">Dashboard</button>
                 <button @click="activeTab = 'sow'" :class="activeTab === 'sow' ? 'bg-emerald-900' : 'hover:bg-emerald-700'" class="px-3 py-1.5 rounded text-sm font-medium transition">Sow New Batch</button>
                 <button @click="activeTab = 'batches'" :class="activeTab === 'batches' ? 'bg-emerald-900' : 'hover:bg-emerald-700'" class="px-3 py-1.5 rounded text-sm font-medium transition">Active Trays</button>
+                <button @click="activeTab = 'library'" :class="activeTab === 'library' ? 'bg-emerald-900' : 'hover:bg-emerald-700'" class="px-3 py-1.5 rounded text-sm font-medium transition">Crop Library</button>
+                <button @click="activeTab = 'logs'" :class="activeTab === 'logs' ? 'bg-emerald-900' : 'hover:bg-emerald-700'" class="px-3 py-1.5 rounded text-sm font-medium transition">Task Logs</button>
             </nav>
         </div>
     </header>
@@ -71,18 +73,22 @@
 
         <!-- TAB 1: DASHBOARD (Today's Actions) -->
         <div x-show="activeTab === 'dashboard'" class="space-y-6 print:hidden">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
                     <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Active Trays in Room</h3>
                     <p class="text-3xl font-extrabold text-emerald-700 mt-1" x-text="stats.activeTrays">0</p>
                 </div>
                 <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Due for Harvest This Week</h3>
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Under Lights / Harvest Queue</h3>
                     <p class="text-3xl font-extrabold text-amber-600 mt-1" x-text="stats.dueHarvest">0</p>
                 </div>
                 <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Ready to Uncover / Light</h3>
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500">In Blackout / Uncover</h3>
                     <p class="text-3xl font-extrabold text-blue-600 mt-1" x-text="stats.dueUncover">0</p>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Harvested (oz)</h3>
+                    <p class="text-3xl font-extrabold text-slate-800 mt-1" x-text="stats.totalYieldOz.toFixed(1)">0.0</p>
                 </div>
             </div>
 
@@ -95,14 +101,18 @@
                             <div>
                                 <span class="inline-block px-2 py-0.5 text-xs font-semibold rounded bg-emerald-100 text-emerald-800 mb-1" x-text="batch.crops?.name"></span>
                                 <h4 class="font-bold text-slate-900" x-text="batch.batch_code"></h4>
-                                <p class="text-xs text-slate-500">Location: <span x-text="batch.rack_location || 'Unassigned'"></span> | Status: <span class="capitalize font-medium" x-text="batch.status"></span></p>
+                                <p class="text-xs text-slate-500">
+                                    Location: <span x-text="batch.rack_location || 'Unassigned'"></span> |
+                                    Stage: <span class="capitalize font-medium" x-text="batch.status"></span> |
+                                    Target Yield: <span x-text="formatYieldRange(batch.crops)"></span>
+                                </p>
                             </div>
                             <div class="flex gap-2">
                                 <template x-if="batch.status === 'germination'">
-                                    <button @click="updateBatchStatus(batch.id, 'lit')" class="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 transition">Uncover to Light</button>
+                                    <button @click="uncoverBatch(batch)" class="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 transition">Uncover to Light</button>
                                 </template>
                                 <template x-if="batch.status === 'lit'">
-                                    <button @click="updateBatchStatus(batch.id, 'harvested')" class="px-3 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded hover:bg-emerald-700 transition">Mark Harvested</button>
+                                    <button @click="openHarvestModal(batch)" class="px-3 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded hover:bg-emerald-700 transition">Log Harvest</button>
                                 </template>
                             </div>
                         </div>
@@ -119,11 +129,15 @@
             <h2 class="text-xl font-bold text-slate-800 mb-6 print:hidden">🌱 Sow New Batch & Generate UPC Tray Label</h2>
             <form @submit.prevent="sowBatch" class="space-y-4 print:hidden">
                 <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Select Crop Variety</label>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Select Crop Variety (Grouped by Category)</label>
                     <select x-model="newBatch.crop_id" @change="onCropSelect()" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500" required>
                         <option value="">-- Choose Crop --</option>
-                        <template x-for="crop in crops" :key="crop.id">
-                            <option :value="crop.id" x-text="crop.name + ' (' + crop.category + ')'"></option>
+                        <template x-for="cat in cropCategories" :key="cat">
+                            <optgroup :label="cat">
+                                <template x-for="crop in cropsByCategory(cat)" :key="crop.id">
+                                    <option :value="crop.id" x-text="crop.name"></option>
+                                </template>
+                            </optgroup>
                         </template>
                     </select>
                 </div>
@@ -145,11 +159,16 @@
                     <input type="text" x-model="newBatch.lot_code" placeholder="e.g., LOT 1118-A" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" required>
                 </div>
 
-                <div class="p-4 bg-emerald-50 rounded-lg border border-emerald-100 text-sm text-emerald-900 space-y-1">
-                    <p><strong>Calculated Parameters:</strong></p>
-                    <p>• Germination Blackout: <span x-text="selectedCrop?.germination_days || 0"></span> days</p>
-                    <p>• Grow-Out Under Lights: <span x-text="selectedCrop?.grow_out_days || 0"></span> days</p>
-                    <p>• Target Seeding Density: <span x-text="selectedCrop?.target_seeding_density_g || 0"></span> grams</p>
+                <!-- Full SOP Parameter Box -->
+                <div class="p-4 bg-emerald-50 rounded-lg border border-emerald-100 text-sm text-emerald-900 space-y-1.5">
+                    <p class="font-bold">Crop SOP & Environmental Parameters (10×20 Tray):</p>
+                    <p>• <strong>Soak:</strong> <span x-text="selectedCrop ? (selectedCrop.soak_notes || (selectedCrop.soak_hours + ' hrs')) : '—'"></span></p>
+                    <p>• <strong>Germ / Blackout:</strong> <span x-text="selectedCrop ? formatDayRange(selectedCrop.germination_days, selectedCrop.germ_days_max) : '—'"></span> | <strong>Under Lights:</strong> <span x-text="selectedCrop ? (selectedCrop.grow_out_days === 0 ? '0 days (Full blackout)' : formatDayRange(selectedCrop.grow_out_days, selectedCrop.grow_out_days_max)) : '—'"></span></p>
+                    <p>• <strong>Target Seeding Density:</strong> <span x-text="selectedCrop ? formatDensityRange(selectedCrop) : '—'"></span> | <strong>Target Yield:</strong> <span x-text="selectedCrop ? formatYieldRange(selectedCrop) : '—'"></span></p>
+                    <p>• <strong>Environment:</strong> <span x-text="selectedCrop ? formatTempRange(selectedCrop) : '—'"></span> | <span x-text="selectedCrop ? formatRhRange(selectedCrop) : '—'"></span></p>
+                    <template x-if="selectedCrop?.crop_notes">
+                        <p class="text-xs text-emerald-800 pt-1 border-t border-emerald-200" x-text="'Note: ' + selectedCrop.crop_notes"></p>
+                    </template>
                 </div>
 
                 <button type="submit" class="w-full py-2.5 bg-emerald-700 text-white font-semibold rounded-lg hover:bg-emerald-800 transition">Save Batch & Print UPC Label</button>
@@ -160,18 +179,11 @@
                 <div class="mt-8 p-6 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-center space-y-4 print:mt-0 print:p-0 print:border-none">
                     <h3 class="font-bold text-slate-800 print:hidden">🖨️ Tray UPC Label Ready for CT221D Printer (2" x 1")</h3>
                     
-                    <!-- 4-Line Thermal Sticker Layout -->
+                    <!-- Locked-In 4-Line Thermal Sticker Layout -->
                     <div id="printableLabel" class="bg-white inline-block rounded shadow-sm print:shadow-none print:p-0" style="width: 2in; height: 1in; box-sizing: border-box; padding: 1.5px; display: flex; flex-direction: column; justify-content: space-between; align-items: center;">
-                        <!-- Line 1: Farm Name -->
                         <p style="font-size: 10pt; font-weight: 900; line-height: 1; margin: 0; color: #000; letter-spacing: 0.3px;">GRIFFIN FAMILY FARMS</p>
-                        
-                        <!-- Line 2: Barcode -->
                         <svg id="barcodeElement" style="width: 1.85in; height: 0.34in; display: block; margin: 0 auto;"></svg>
-                        
-                        <!-- Line 3: Barcode Number -->
                         <p style="font-size: 8.5pt; font-family: monospace; font-weight: 800; line-height: 1; margin: 0; color: #000;" x-text="lastCreatedBatch.upc_code"></p>
-                        
-                        <!-- Line 4: Sow Date + Product Abbreviation + Rack [X] Shelf [Y] -->
                         <p style="font-size: 8.5pt; font-weight: 900; line-height: 1; margin: 0; color: #000;" x-text="formatShortLabelInfo(lastCreatedBatch)"></p>
                     </div>
 
@@ -182,10 +194,10 @@
             </template>
         </div>
 
-        <!-- TAB 3: ACTIVE BATCHES TABLE (Upgraded Lifecycle & Reprint Controls) -->
+        <!-- TAB 3: ACTIVE BATCHES TABLE -->
         <div x-show="activeTab === 'batches'" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 print:hidden">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-base font-bold text-slate-800">📦 Active Growing Trays & Lifecycle Management</h2>
+                <h2 class="text-base font-bold text-slate-800">📦 Active Growing Trays & Yield Records</h2>
                 <span class="text-xs text-slate-500" x-text="'Showing ' + batches.length + ' total batches'"></span>
             </div>
             <div class="overflow-x-auto">
@@ -197,7 +209,8 @@
                             <th class="p-3">Rack & Shelf</th>
                             <th class="p-3">Stage</th>
                             <th class="p-3">Sown</th>
-                            <th class="p-3">Harvest</th>
+                            <th class="p-3">Harvest Date</th>
+                            <th class="p-3">Yield (Actual / Target)</th>
                             <th class="p-3 text-right">Actions</th>
                         </tr>
                     </thead>
@@ -216,13 +229,17 @@
                                     }" x-text="batch.status"></span>
                                 </td>
                                 <td class="p-3" x-text="new Date(batch.sown_date).toLocaleDateString()"></td>
-                                <td class="p-3" x-text="new Date(batch.target_harvest_date).toLocaleDateString()"></td>
+                                <td class="p-3" x-text="batch.actual_harvest_date ? new Date(batch.actual_harvest_date).toLocaleDateString() : new Date(batch.target_harvest_date).toLocaleDateString() + ' (Est)'"></td>
+                                <td class="p-3 font-medium">
+                                    <span x-text="batch.actual_yield_oz != null ? batch.actual_yield_oz + ' oz' : '—'"></span>
+                                    <span class="text-xs text-slate-400" x-text="' / ' + formatYieldRange(batch.crops)"></span>
+                                </td>
                                 <td class="p-3 flex justify-end items-center gap-2">
                                     <template x-if="batch.status === 'germination'">
-                                        <button @click="updateBatchStatus(batch.id, 'lit')" class="px-2.5 py-1 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 transition">Move to Light</button>
+                                        <button @click="uncoverBatch(batch)" class="px-2.5 py-1 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 transition">Move to Light</button>
                                     </template>
                                     <template x-if="batch.status === 'lit'">
-                                        <button @click="updateBatchStatus(batch.id, 'harvested')" class="px-2.5 py-1 bg-emerald-600 text-white text-xs font-semibold rounded hover:bg-emerald-700 transition">Harvest</button>
+                                        <button @click="openHarvestModal(batch)" class="px-2.5 py-1 bg-emerald-600 text-white text-xs font-semibold rounded hover:bg-emerald-700 transition">Log Harvest</button>
                                     </template>
                                     <button @click="reprintBatch(batch)" class="px-2.5 py-1 bg-slate-700 text-white text-xs font-semibold rounded hover:bg-slate-800 transition">Reprint UPC</button>
                                     <button @click="deleteBatch(batch.id)" class="text-red-600 hover:text-red-800 text-xs font-medium px-1">Delete</button>
@@ -231,6 +248,138 @@
                         </template>
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- TAB 4: CROP SOP LIBRARY (All 44 Varieties & Ranges) -->
+        <div x-show="activeTab === 'library'" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4 print:hidden">
+            <div class="flex flex-wrap justify-between items-center gap-3">
+                <div>
+                    <h2 class="text-base font-bold text-slate-800">📚 Master Microgreens Crop SOP Library (10×20 Tray Specs)</h2>
+                    <p class="text-xs text-slate-500">Complete soak, blackout, light grow-out, seeding density, yield, and climate parameters.</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <input type="text" x-model="librarySearch" placeholder="Search variety..." class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs">
+                    <select x-model="libraryCategoryFilter" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs">
+                        <option value="">All Categories</option>
+                        <template x-for="cat in cropCategories" :key="cat">
+                            <option :value="cat" x-text="cat"></option>
+                        </template>
+                    </select>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-600">
+                    <thead class="bg-slate-100 text-slate-700 uppercase font-semibold">
+                        <tr>
+                            <th class="p-2.5">Variety</th>
+                            <th class="p-2.5">Category</th>
+                            <th class="p-2.5">Soak</th>
+                            <th class="p-2.5">Germ / Blackout</th>
+                            <th class="p-2.5">Under Light</th>
+                            <th class="p-2.5">Total Days</th>
+                            <th class="p-2.5">Density (10×20)</th>
+                            <th class="p-2.5">Target Yield</th>
+                            <th class="p-2.5">Temp / RH</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200">
+                        <template x-for="crop in filteredLibraryCrops" :key="crop.id">
+                            <tr class="hover:bg-slate-50">
+                                <td class="p-2.5 font-bold text-slate-900" x-text="crop.name"></td>
+                                <td class="p-2.5 text-slate-500" x-text="crop.category"></td>
+                                <td class="p-2.5" x-text="crop.soak_notes || (crop.soak_hours + ' hrs')"></td>
+                                <td class="p-2.5" x-text="formatDayRange(crop.germination_days, crop.germ_days_max)"></td>
+                                <td class="p-2.5" x-text="crop.grow_out_days === 0 ? '0 (Dark)' : formatDayRange(crop.grow_out_days, crop.grow_out_days_max)"></td>
+                                <td class="p-2.5 font-semibold" x-text="formatTotalDayRange(crop)"></td>
+                                <td class="p-2.5 font-medium" x-text="formatDensityRange(crop)"></td>
+                                <td class="p-2.5 font-semibold text-emerald-700" x-text="formatYieldRange(crop)"></td>
+                                <td class="p-2.5" x-text="formatTempRange(crop) + ' | ' + formatRhRange(crop)"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 5: TASK & ENVIRONMENT AUDIT LOGS -->
+        <div x-show="activeTab === 'logs'" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 print:hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-base font-bold text-slate-800">🧾 Grow Room Task & Environment Logs</h2>
+                <span class="text-xs text-slate-500" x-text="taskLogs.length + ' logged events'"></span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-slate-600">
+                    <thead class="bg-slate-100 text-slate-700 text-xs uppercase font-semibold">
+                        <tr>
+                            <th class="p-3">Timestamp</th>
+                            <th class="p-3">Batch</th>
+                            <th class="p-3">Task Type</th>
+                            <th class="p-3">Performed By</th>
+                            <th class="p-3">Temp / RH</th>
+                            <th class="p-3">Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200">
+                        <template x-for="log in taskLogs" :key="log.id">
+                            <tr>
+                                <td class="p-3 text-xs" x-text="new Date(log.created_at).toLocaleString()"></td>
+                                <td class="p-3 font-mono font-bold text-slate-900" x-text="log.batches?.batch_code || '—'"></td>
+                                <td class="p-3 capitalize font-medium text-emerald-800" x-text="log.task_type"></td>
+                                <td class="p-3" x-text="log.performed_by || 'Operator'"></td>
+                                <td class="p-3 text-xs" x-text="(log.temp_f ? log.temp_f + '°F' : '—') + ' / ' + (log.rh_pct ? log.rh_pct + '%' : '—')"></td>
+                                <td class="p-3 text-xs" x-text="log.notes || ''"></td>
+                            </tr>
+                        </template>
+                        <template x-if="taskLogs.length === 0">
+                            <tr><td colspan="6" class="p-4 text-center text-slate-500 text-sm">No task logs recorded yet. Actions on trays will automatically log here.</td></tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- HARVEST YIELD MODAL -->
+        <div x-show="harvestModal.open" style="display: none;" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 print:hidden">
+            <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+                <div class="flex justify-between items-center border-b border-slate-200 pb-3">
+                    <h3 class="text-lg font-bold text-slate-900">✂️ Log Tray Harvest & Yield</h3>
+                    <button @click="harvestModal.open = false" class="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
+                </div>
+
+                <div class="text-xs bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1">
+                    <p><strong>Batch:</strong> <span class="font-mono" x-text="harvestModal.batch?.batch_code"></span></p>
+                    <p><strong>Crop:</strong> <span x-text="harvestModal.batch?.crops?.name"></span> | <strong>Target Yield:</strong> <span x-text="formatYieldRange(harvestModal.batch?.crops)"></span></p>
+                </div>
+
+                <form @submit.prevent="submitHarvest()" class="space-y-3">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Actual Harvested Weight (oz)</label>
+                        <input type="number" step="0.1" min="0" x-model="harvestModal.actual_yield_oz" placeholder="e.g., 10.5" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" required>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">Room Temp (°F)</label>
+                            <input type="number" step="0.1" x-model="harvestModal.temp_f" placeholder="70.0" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">Humidity (% RH)</label>
+                            <input type="number" step="0.1" x-model="harvestModal.rh_pct" placeholder="50.0" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Harvest Notes / Quality Check</label>
+                        <input type="text" x-model="harvestModal.notes" placeholder="e.g., Clean cut, strong aroma, Grade A" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                    </div>
+
+                    <div class="flex justify-end gap-2 pt-2">
+                        <button type="button" @click="harvestModal.open = false" class="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200">Cancel</button>
+                        <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-emerald-700 rounded-lg hover:bg-emerald-800">Save Harvest Record</button>
+                    </div>
+                </form>
             </div>
         </div>
 
@@ -249,21 +398,105 @@
                 crops: [],
                 batches: [],
                 queueBatches: [],
+                taskLogs: [],
                 selectedCrop: null,
                 lastCreatedBatch: null,
                 alertMessage: '',
                 alertType: 'success',
-                stats: { activeTrays: 0, dueHarvest: 0, dueUncover: 0 },
+                librarySearch: '',
+                libraryCategoryFilter: '',
+                stats: { activeTrays: 0, dueHarvest: 0, dueUncover: 0, totalYieldOz: 0 },
                 newBatch: {
                     crop_id: '',
                     rack: '',
                     shelf: '',
                     lot_code: 'LOT ' + new Date().toISOString().slice(5,10).replace(/-/g,'') + '-A'
                 },
+                harvestModal: {
+                    open: false,
+                    batch: null,
+                    actual_yield_oz: '',
+                    temp_f: 70,
+                    rh_pct: 50,
+                    notes: ''
+                },
+
+                get cropCategories() {
+                    const preferredOrder = [
+                        'Standard Brassicas & Fast Greens',
+                        'Large Seeds, Shoots & Grains',
+                        'Colorful & Specialty Greens',
+                        'Microherbs & Aromatics'
+                    ];
+                    const existing = [...new Set(this.crops.map(c => c.category).filter(Boolean))];
+                    return [
+                        ...preferredOrder.filter(c => existing.includes(c)),
+                        ...existing.filter(c => !preferredOrder.includes(c))
+                    ];
+                },
+
+                get filteredLibraryCrops() {
+                    return this.crops.filter(c => {
+                        const matchesCat = !this.libraryCategoryFilter || c.category === this.libraryCategoryFilter;
+                        const q = this.librarySearch.toLowerCase().trim();
+                        const matchesSearch = !q || c.name.toLowerCase().includes(q) || (c.category || '').toLowerCase().includes(q);
+                        return matchesCat && matchesSearch;
+                    });
+                },
+
+                cropsByCategory(cat) {
+                    return this.crops.filter(c => c.category === cat);
+                },
+
+                formatDayRange(minVal, maxVal) {
+                    if (minVal == null) return '—';
+                    if (maxVal && maxVal !== minVal) return `${minVal}–${maxVal} days`;
+                    return `${minVal} days`;
+                },
+
+                formatTotalDayRange(crop) {
+                    if (!crop) return '—';
+                    const minTotal = (crop.germination_days || 0) + (crop.grow_out_days || 0);
+                    const maxTotal = (crop.germ_days_max || crop.germination_days || 0) + (crop.grow_out_days_max ?? crop.grow_out_days ?? 0);
+                    return minTotal !== maxTotal ? `${minTotal}–${maxTotal} d` : `${minTotal} d`;
+                },
+
+                formatDensityRange(crop) {
+                    if (!crop) return '—';
+                    if (crop.density_min_g != null && crop.density_max_g != null) {
+                        return `${crop.density_min_g}–${crop.density_max_g} g`;
+                    }
+                    return `${crop.target_seeding_density_g || 0} g`;
+                },
+
+                formatYieldRange(crop) {
+                    if (!crop) return '0 oz';
+                    if (crop.yield_min_oz != null && crop.yield_max_oz != null) {
+                        return `${crop.yield_min_oz}–${crop.yield_max_oz} oz`;
+                    }
+                    return `${crop.target_yield_oz || 0} oz`;
+                },
+
+                formatTempRange(crop) {
+                    if (!crop) return '—';
+                    if (crop.temp_min_f != null && crop.temp_max_f != null) {
+                        return `${crop.temp_min_f}–${crop.temp_max_f}°F`;
+                    }
+                    return `${crop.preferred_temp_f || 70}°F`;
+                },
+
+                formatRhRange(crop) {
+                    if (!crop) return '—';
+                    if (crop.rh_min_pct != null && crop.rh_max_pct != null) {
+                        return `${crop.rh_min_pct}–${crop.rh_max_pct}% RH`;
+                    }
+                    return `${crop.preferred_rh_pct || 50}% RH`;
+                },
 
                 async init() {
                     await this.fetchCrops();
                     await this.fetchBatches();
+                    await this.fetchTaskLogs();
                 },
 
                 showAlert(msg, type = 'success') {
@@ -272,7 +505,6 @@
                     setTimeout(() => { this.alertMessage = ''; }, 4000);
                 },
 
-                // Ensures "Rack <value> Shelf <value>" always appears cleanly
                 formatLocationLabel(rackVal, shelfVal) {
                     const cleanRack = (rackVal || '').replace(/^rack\s*/i, '').trim();
                     const cleanShelf = (shelfVal || '').replace(/^shelf\s*/i, '').trim();
@@ -281,13 +513,11 @@
                     return [rackPart, shelfPart].filter(Boolean).join(' ');
                 },
 
-                // Builds Line 4: "YYMMDD-CROP | Rack <X> Shelf <Y>"
                 formatShortLabelInfo(batch) {
                     if (!batch) return '';
                     const parts = (batch.batch_code || '').split('-');
                     const dateAndCrop = parts.length >= 3 ? `${parts[1]}-${parts[2]}` : batch.batch_code;
 
-                    // If already saved as "Rack X Shelf Y", keep it; otherwise parse legacy "X - Y"
                     let locFormatted = batch.rack_location || '';
                     if (locFormatted && !/^rack\s/i.test(locFormatted)) {
                         const splitLoc = locFormatted.split(' - ');
@@ -316,7 +546,7 @@
                 },
 
                 async fetchBatches() {
-                    const { data, error } = await supabaseClient.from('batches').select('*, crops(name, category)').order('sown_date', { ascending: false });
+                    const { data, error } = await supabaseClient.from('batches').select('*, crops(*)').order('sown_date', { ascending: false });
                     if (error) {
                         this.showAlert('Error loading batches: ' + error.message, 'error');
                     } else {
@@ -326,7 +556,27 @@
                         this.stats.activeTrays = this.batches.filter(b => b.status !== 'harvested' && b.status !== 'culled').length;
                         this.stats.dueUncover = this.batches.filter(b => b.status === 'germination').length;
                         this.stats.dueHarvest = this.batches.filter(b => b.status === 'lit').length;
+                        this.stats.totalYieldOz = this.batches.reduce((sum, b) => sum + (parseFloat(b.actual_yield_oz) || 0), 0);
                     }
+                },
+
+                async fetchTaskLogs() {
+                    const { data, error } = await supabaseClient.from('task_logs').select('*, batches(batch_code)').order('created_at', { ascending: false }).limit(50);
+                    if (!error && data) {
+                        this.taskLogs = data;
+                    }
+                },
+
+                async logTask(batchId, taskType, tempF = null, rhPct = null, notes = '') {
+                    await supabaseClient.from('task_logs').insert([{
+                        batch_id: batchId,
+                        task_type: taskType,
+                        performed_by: 'Travis Griffin',
+                        temp_f: tempF,
+                        rh_pct: rhPct,
+                        notes: notes
+                    }]);
+                    await this.fetchTaskLogs();
                 },
 
                 onCropSelect() {
@@ -338,11 +588,12 @@
 
                     const dateStr = new Date().toISOString().slice(2,10).replace(/-/g,'');
                     const randomId = Math.floor(10 + Math.random() * 90);
-                    const batchCode = `GFF-${dateStr}-${this.selectedCrop.name.slice(0,3).toUpperCase()}-${randomId}`;
+                    const cropAbbr = this.selectedCrop.name.replace(/[^A-Za-z]/g, '').slice(0,3).toUpperCase();
+                    const batchCode = `GFF-${dateStr}-${cropAbbr}-${randomId}`;
                     const upcCode = `8500${Math.floor(100000000 + Math.random() * 900000000)}`;
                     const combinedLocation = this.formatLocationLabel(this.newBatch.rack, this.newBatch.shelf);
 
-                    const totalDays = this.selectedCrop.germination_days + this.selectedCrop.grow_out_days;
+                    const totalDays = (this.selectedCrop.germination_days || 0) + (this.selectedCrop.grow_out_days || 0);
                     const targetHarvest = new Date();
                     targetHarvest.setDate(targetHarvest.getDate() + totalDays);
 
@@ -354,21 +605,85 @@
                         status: 'germination',
                         target_harvest_date: targetHarvest.toISOString(),
                         lot_code: this.newBatch.lot_code,
-                        notes: `Sown at ${this.selectedCrop.target_seeding_density_g}g density.`
+                        notes: `Sown at ${this.formatDensityRange(this.selectedCrop)} density.`
                     };
 
-                    const { data, error } = await supabaseClient.from('batches').insert([payload]).select('*, crops(name)').single();
+                    const { data, error } = await supabaseClient.from('batches').insert([payload]).select('*, crops(*)').single();
 
                     if (error) {
                         this.showAlert('Error creating batch: ' + error.message, 'error');
                     } else {
                         this.showAlert('Batch successfully sown and registered in database!');
                         this.lastCreatedBatch = data;
+                        await this.logTask(data.id, 'sown', this.selectedCrop.preferred_temp_f, this.selectedCrop.preferred_rh_pct, `Sown ${this.selectedCrop.name} (${this.formatDensityRange(this.selectedCrop)}) at ${combinedLocation}`);
                         await this.fetchBatches();
                         this.renderBarcode(data.upc_code);
 
                         this.newBatch.rack = '';
                         this.newBatch.shelf = '';
+                    }
+                },
+
+                async uncoverBatch(batch) {
+                    const nowIso = new Date().toISOString();
+                    // Popcorn Shoots stay in dark (grow_out_days === 0)
+                    const isDarkCrop = batch.crops?.grow_out_days === 0;
+                    const { error } = await supabaseClient.from('batches').update({
+                        status: 'lit',
+                        uncover_date: nowIso
+                    }).eq('id', batch.id);
+
+                    if (error) {
+                        this.showAlert('Error uncovering batch: ' + error.message, 'error');
+                    } else {
+                        const actionNote = isDarkCrop
+                            ? `Kept in full dark for sweetness at ${batch.rack_location}`
+                            : `Moved to lights at ${batch.rack_location}`;
+                        await this.logTask(batch.id, 'uncovered_to_light', batch.crops?.preferred_temp_f, batch.crops?.preferred_rh_pct, actionNote);
+                        this.showAlert(isDarkCrop ? `${batch.batch_code} marked ready for harvest queue (Full Blackout)!` : `${batch.batch_code} uncovered and moved to lights!`);
+                        await this.fetchBatches();
+                    }
+                },
+
+                openHarvestModal(batch) {
+                    this.harvestModal.batch = batch;
+                    this.harvestModal.actual_yield_oz = batch.crops?.target_yield_oz || '';
+                    this.harvestModal.temp_f = batch.crops?.preferred_temp_f || 70;
+                    this.harvestModal.rh_pct = batch.crops?.preferred_rh_pct || 50;
+                    this.harvestModal.notes = '';
+                    this.harvestModal.open = true;
+                },
+
+                async submitHarvest() {
+                    const batch = this.harvestModal.batch;
+                    if (!batch) return;
+
+                    const nowIso = new Date().toISOString();
+                    const yieldOz = parseFloat(this.harvestModal.actual_yield_oz);
+                    const updatedNotes = this.harvestModal.notes
+                        ? `${batch.notes || ''} | Harvest: ${this.harvestModal.notes}`.trim()
+                        : batch.notes;
+
+                    const { error } = await supabaseClient.from('batches').update({
+                        status: 'harvested',
+                        actual_harvest_date: nowIso,
+                        actual_yield_oz: yieldOz,
+                        notes: updatedNotes
+                    }).eq('id', batch.id);
+
+                    if (error) {
+                        this.showAlert('Error saving harvest: ' + error.message, 'error');
+                    } else {
+                        await this.logTask(
+                            batch.id,
+                            'harvested',
+                            this.harvestModal.temp_f ? parseFloat(this.harvestModal.temp_f) : null,
+                            this.harvestModal.rh_pct ? parseFloat(this.harvestModal.rh_pct) : null,
+                            `Harvested ${yieldOz} oz. ${this.harvestModal.notes}`.trim()
+                        );
+                        this.harvestModal.open = false;
+                        this.showAlert(`Harvest recorded (${yieldOz} oz) for ${batch.batch_code}!`);
+                        await this.fetchBatches();
                     }
                 },
 
@@ -379,16 +694,6 @@
                     setTimeout(() => {
                         window.print();
                     }, 250);
-                },
-
-                async updateBatchStatus(id, newStatus) {
-                    const { error } = await supabaseClient.from('batches').update({ status: newStatus }).eq('id', id);
-                    if (error) {
-                        this.showAlert('Error updating batch: ' + error.message, 'error');
-                    } else {
-                        this.showAlert(`Batch status updated to ${newStatus}!`);
-                        await this.fetchBatches();
-                    }
                 },
 
                 async deleteBatch(id) {
