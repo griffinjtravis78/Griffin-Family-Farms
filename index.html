@@ -13,7 +13,7 @@
     <!-- JsBarcode for UPC/Barcode generation -->
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     
-    <!-- Thermal Printer CSS Fix for Clabel CT221D (2 inches wide x 1 inch tall) -->
+    <!-- Thermal Printer CSS Fix for Clabel CT221D (2 inches wide x 1 inch tall) with enlarged fonts -->
     <style>
         @media print {
             body * {
@@ -31,7 +31,7 @@
                 max-width: 2in;
                 max-height: 1in;
                 margin: 0;
-                padding: 0.05in;
+                padding: 0.04in;
                 overflow: hidden;
                 box-sizing: border-box;
                 text-align: center;
@@ -152,13 +152,13 @@
             <template x-if="lastCreatedBatch">
                 <div class="mt-8 p-6 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-center space-y-4 print:mt-0 print:p-0 print:border-none">
                     <h3 class="font-bold text-slate-800 print:hidden">🖨️ Tray UPC Label Ready for CT221D Printer (2" x 1")</h3>
-                    <!-- Exact 2in x 1in sticker layout filling the full physical label area -->
+                    <!-- Exact 2in x 1in sticker layout with enlarged ~1.5x font sizing -->
                     <div id="printableLabel" class="bg-white inline-block rounded shadow-sm print:shadow-none print:p-0" style="width: 2in; height: 1in; box-sizing: border-box; padding: 2px; display: flex; flex-direction: column; justify-content: space-between; align-items: center;">
-                        <p style="font-size: 9pt; font-weight: bold; line-height: 1; margin: 0; color: #000; letter-spacing: 0.5px;">GRIFFIN FAMILY FARMS</p>
-                        <svg id="barcodeElement" style="width: 1.8in; height: 0.45in; display: block; margin: 0 auto;"></svg>
+                        <p style="font-size: 11pt; font-weight: bold; line-height: 1; margin: 0; color: #000; letter-spacing: 0.5px;">GRIFFIN FAMILY FARMS</p>
+                        <svg id="barcodeElement" style="width: 1.8in; height: 0.42in; display: block; margin: 0 auto;"></svg>
                         <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 4px; box-sizing: border-box;">
-                            <span style="font-size: 7.5pt; font-family: monospace; font-weight: bold; line-height: 1; margin: 0;" x-text="lastCreatedBatch.upc_code"></span>
-                            <span style="font-size: 7.5pt; font-weight: 600; line-height: 1; margin: 0;" x-text="lastCreatedBatch.batch_code + ' | ' + lastCreatedBatch.rack_location"></span>
+                            <span style="font-size: 10pt; font-family: monospace; font-weight: bold; line-height: 1; margin: 0;" x-text="lastCreatedBatch.upc_code"></span>
+                            <span style="font-size: 10pt; font-weight: 600; line-height: 1; margin: 0;" x-text="lastCreatedBatch.batch_code + ' | ' + lastCreatedBatch.rack_location"></span>
                         </div>
                     </div>
                     <div class="print:hidden">
@@ -301,13 +301,13 @@
                     } else {
                         this.showAlert('Batch successfully sown and registered in database!');
                         this.lastCreatedBatch = data;
-                        await this.fetchBatches();
+                        await this.fetchBatch(); // refresh
 
                         setTimeout(() => {
                             JsBarcode("#barcodeElement", data.upc_code, {
                                 format: "CODE128",
-                                width: 1.4,
-                                height: 24,
+                                width: 1.3,
+                                height: 22,
                                 displayValue: false,
                                 margin: 0
                             });
@@ -320,7 +320,7 @@
                 async updateBatchStatus(id, newStatus) {
                     const { error } = await supabaseClient.from('batches').update({ status: newStatus }).eq('id', id);
                     if (error) {
-                        this.showAlert('Object update error: ' + error.message, 'error');
+                        this.showAlert('Error updating batch: ' + error.message, 'error');
                     } else {
                         this.showAlert(`Batch status updated to ${newStatus}!`);
                         await this.fetchBatches();
