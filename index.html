@@ -13,12 +13,12 @@
     <!-- JsBarcode for UPC/Barcode generation -->
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     
-    <!-- Thermal Printer CSS for Clabel CT221D (Native 48mm x 120mm Vertical Portrait) -->
+    <!-- Thermal Printer CSS for Clabel CT221D (True 40mm x 20mm Landscape with Maximized Large Fonts) -->
     <style>
         @media print {
             html, body {
-                width: 48mm;
-                height: 120mm;
+                width: 40mm;
+                height: 20mm;
                 margin: 0 !important;
                 padding: 0 !important;
                 overflow: hidden !important;
@@ -34,24 +34,23 @@
                 position: fixed;
                 top: 0;
                 left: 0;
-                width: 48mm !important;
-                height: 120mm !important;
-                max-width: 48mm !important;
-                max-height: 120mm !important;
+                width: 40mm !important;
+                height: 20mm !important;
+                max-width: 40mm !important;
+                max-height: 20mm !important;
                 margin: 0 !important;
-                padding: 3mm !important;
+                padding: 0.6mm 1mm !important;
                 overflow: hidden !important;
                 box-sizing: border-box !important;
                 display: flex !important;
                 flex-direction: column !important;
                 justify-content: space-between !important;
-                align-items: center !important;
                 background: white !important;
                 border: none !important;
                 transform: none !important;
             }
             @page {
-                size: 48mm 120mm;
+                size: 40mm 20mm;
                 margin: 0;
             }
         }
@@ -164,30 +163,32 @@
             <!-- UPC Barcode Preview Modal / Card -->
             <template x-if="lastCreatedBatch">
                 <div class="mt-8 p-6 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-center space-y-4 print:mt-0 print:p-0 print:border-none">
-                    <h3 class="font-bold text-slate-800 print:hidden">🖨️ Tray UPC Label Ready for CT221D Printer (48mm x 120mm Portrait)</h3>
+                    <h3 class="font-bold text-slate-800 print:hidden">🖨️ Tray UPC Label Ready for CT221D Printer (40mm x 20mm Landscape)</h3>
                     
-                    <!-- Native 48mm x 120mm vertical portrait layout with large, highly legible fonts -->
-                    <div id="printableLabel" class="bg-white inline-block rounded shadow-sm print:shadow-none" style="width: 48mm; height: 120mm; box-sizing: border-box; padding: 3mm; display: flex; flex-direction: column; justify-content: space-between; align-items: center; color: #000; font-family: sans-serif;">
+                    <!-- Exact 40mm x 20mm landscape layout with bold 9pt-11pt text matching Clabel Trade template -->
+                    <div id="printableLabel" class="bg-white inline-block rounded shadow-sm print:shadow-none" style="width: 40mm; height: 20mm; box-sizing: border-box; padding: 0.6mm 1mm; display: flex; flex-direction: column; justify-content: space-between; color: #000; font-family: sans-serif;">
                         
-                        <!-- Top Header & Crop Name -->
-                        <div style="text-align: center; width: 100%; border-bottom: 2.5px solid #000; padding-bottom: 2.5mm;">
-                            <p style="font-size: 13pt; font-weight: 900; line-height: 1.1; margin: 0; letter-spacing: 0.3px;">GRIFFIN FAMILY FARMS</p>
-                            <p style="font-size: 15pt; font-weight: 900; line-height: 1.2; margin: 1.5mm 0 0 0;" x-text="lastCreatedBatch.crops?.name || ''"></p>
+                        <!-- Top Row: Crop Name (11pt Bold) -->
+                        <div style="width: 100%; text-align: left; white-space: nowrap; overflow: hidden;">
+                            <p style="font-size: 11pt; font-weight: 900; line-height: 1; margin: 0;" x-text="lastCreatedBatch.crops?.name || 'Griffin Farms'"></p>
                         </div>
 
-                        <!-- Middle Barcode Section -->
-                        <div style="width: 100%; text-align: center; margin: 2mm 0;">
-                            <svg id="barcodeElement" style="width: 42mm; height: 28mm; display: block; margin: 0 auto;"></svg>
-                            <p style="font-size: 13pt; font-family: monospace; font-weight: 900; line-height: 1.2; margin: 1.5mm 0 0 0;" x-text="lastCreatedBatch.upc_code"></p>
+                        <!-- Middle Row: Sub-details (8.5pt Bold) -->
+                        <div style="width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: center; font-size: 8.5pt; font-weight: 900; line-height: 1.1;">
+                            <span x-text="lastCreatedBatch.batch_code"></span>
+                            <span x-text="'Harv: ' + new Date(lastCreatedBatch.target_harvest_date).toLocaleDateString('en-US', {month:'numeric', day:'numeric'})"></span>
                         </div>
 
-                        <!-- Bottom Details Section (Large 11.5pt Font) -->
-                        <div style="width: 100%; text-align: left; background: #f3f4f6; padding: 3mm; border-radius: 1.5mm; box-sizing: border-box; font-size: 11.5pt; font-weight: 900; line-height: 1.4;">
-                            <p style="margin: 0;" x-text="'Batch: ' + lastCreatedBatch.batch_code"></p>
-                            <p style="margin: 1mm 0 0 0;" x-text="'Location: ' + lastCreatedBatch.rack_location"></p>
-                            <p style="margin: 1mm 0 0 0;" x-text="'Lot: ' + lastCreatedBatch.lot_code"></p>
-                            <p style="margin: 1mm 0 0 0;" x-text="'Sown: ' + new Date(lastCreatedBatch.sown_date).toLocaleDateString()"></p>
-                            <p style="margin: 1mm 0 0 0;" x-text="'Harvest: ' + new Date(lastCreatedBatch.target_harvest_date).toLocaleDateString()"></p>
+                        <!-- Bottom Row: Barcode Left + Location/Lot Right (11pt Bold) -->
+                        <div style="width: 100%; display: flex; justify-content: space-between; align-items: flex-end;">
+                            <div style="width: 58%; text-align: left;">
+                                <svg id="barcodeElement" style="width: 22mm; height: 5mm; display: block;"></svg>
+                                <p style="font-size: 6.5pt; font-family: monospace; font-weight: 900; line-height: 1; margin: 0.2mm 0 0 0;" x-text="lastCreatedBatch.upc_code"></p>
+                            </div>
+                            <div style="width: 40%; text-align: right;">
+                                <p style="font-size: 11pt; font-weight: 900; line-height: 1; margin: 0;" x-text="lastCreatedBatch.rack_location"></p>
+                                <p style="font-size: 7pt; font-weight: 900; line-height: 1; margin: 0.4mm 0 0 0;" x-text="lastCreatedBatch.lot_code"></p>
+                            </div>
                         </div>
 
                     </div>
@@ -336,8 +337,8 @@
                         setTimeout(() => {
                             JsBarcode("#barcodeElement", data.upc_code, {
                                 format: "CODE128",
-                                width: 1.8,
-                                height: 38,
+                                width: 0.9,
+                                height: 16,
                                 displayValue: false,
                                 margin: 0
                             });
