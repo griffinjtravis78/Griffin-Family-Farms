@@ -166,7 +166,7 @@
                 <div class="mt-8 p-6 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-center space-y-4 print:mt-0 print:p-0 print:border-none">
                     <h3 class="font-bold text-slate-800 print:hidden">🖨️ Tray UPC Label Ready for CT221D Printer (48mm x 120mm Portrait)</h3>
                     
-                    <!-- Native 48mm x 120mm vertical portrait layout with massive, highly legible fonts -->
+                    <!-- Native 48mm x 120mm vertical portrait layout with large, highly legible fonts -->
                     <div id="printableLabel" class="bg-white inline-block rounded shadow-sm print:shadow-none" style="width: 48mm; height: 120mm; box-sizing: border-box; padding: 3mm; display: flex; flex-direction: column; justify-content: space-between; align-items: center; color: #000; font-family: sans-serif;">
                         
                         <!-- Top Header & Crop Name -->
@@ -181,7 +181,7 @@
                             <p style="font-size: 13pt; font-family: monospace; font-weight: 900; line-height: 1.2; margin: 1.5mm 0 0 0;" x-text="lastCreatedBatch.upc_code"></p>
                         </div>
 
-                        <!-- Bottom Details Section (Large 11pt-12pt Font) -->
+                        <!-- Bottom Details Section (Large 11.5pt Font) -->
                         <div style="width: 100%; text-align: left; background: #f3f4f6; padding: 3mm; border-radius: 1.5mm; box-sizing: border-box; font-size: 11.5pt; font-weight: 900; line-height: 1.4;">
                             <p style="margin: 0;" x-text="'Batch: ' + lastCreatedBatch.batch_code"></p>
                             <p style="margin: 1mm 0 0 0;" x-text="'Location: ' + lastCreatedBatch.rack_location"></p>
@@ -358,7 +358,7 @@
                 },
 
                 async deleteBatch(id) {
-                    if (!confirm('Are you sure you want to delete this tray batch?'))። return;
+                    if (!confirm('Are you sure you want to delete this tray batch?')) return;
                     const { error } = await supabaseClient.from('batches').delete().eq('id', id);
                     if (error) {
                         this.showAlert('Error deleting batch: ' + error.message, 'error');
