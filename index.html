@@ -13,7 +13,7 @@
     <!-- JsBarcode for UPC/Barcode generation -->
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     
-    <!-- Thermal Printer CSS Fix for Clabel CT221D (2" x 1") -->
+    <!-- Thermal Printer CSS Fix for Clabel CT221D (2" x 1") with tight spacing to prevent multi-feed -->
     <style>
         @media print {
             body * {
@@ -28,8 +28,11 @@
                 top: 0;
                 width: 50mm;
                 height: 25mm;
+                max-height: 25mm;
                 margin: 0;
-                padding: 2mm;
+                padding: 1mm;
+                overflow: hidden;
+                box-sizing: border-box;
                 text-align: center;
                 background: white;
             }
@@ -148,11 +151,12 @@
             <template x-if="lastCreatedBatch">
                 <div class="mt-8 p-6 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-center space-y-4 print:mt-0 print:p-0 print:border-none">
                     <h3 class="font-bold text-slate-800 print:hidden">🖨️ Tray UPC Label Ready for CT221D Printer</h3>
-                    <div id="printableLabel" class="bg-white p-3 inline-block rounded shadow-sm print:shadow-none print:p-0">
-                        <p class="text-[10px] font-bold text-slate-900">GRIFFIN FAMILY FARMS</p>
-                        <svg id="barcodeElement"></svg>
-                        <p class="text-[9px] font-mono font-bold mt-0.5" x-text="lastCreatedBatch.upc_code"></p>
-                        <p class="text-[9px] text-slate-700 font-medium" x-text="lastCreatedBatch.batch_code + ' | ' + lastCreatedBatch.rack_location"></p>
+                    <!-- Compact 2" x 1" thermal label container designed to fit everything strictly on one physical sticker -->
+                    <div id="printableLabel" class="bg-white p-1 inline-block rounded shadow-sm print:shadow-none print:p-0" style="width: 48mm; max-height: 23mm;">
+                        <p style="font-size: 8px; font-weight: bold; line-height: 1; margin: 0 0 1px 0; color: #000;">GRIFFIN FAMILY FARMS</p>
+                        <svg id="barcodeElement" style="height: 28mm; max-height: 32px; display: block; margin: 0 auto;"></svg>
+                        <p style="font-size: 8px; font-family: monospace; font-weight: bold; line-height: 1; margin: 1px 0 0 0;" x-text="lastCreatedBatch.upc_code"></p>
+                        <p style="font-size: 7.5px; font-weight: 500; line-height: 1; margin: 1px 0 0 0; color: #222;" x-text="lastCreatedBatch.batch_code + ' | ' + lastCreatedBatch.rack_location"></p>
                     </div>
                     <div class="print:hidden">
                         <button @click="printLabel()" class="px-4 py-2 bg-slate-800 text-white text-xs font-semibold rounded hover:bg-slate-900 transition">Print Label on Thermal Printer</button>
@@ -299,10 +303,10 @@
                         setTimeout(() => {
                             JsBarcode("#barcodeElement", data.upc_code, {
                                 format: "CODE128",
-                                width: 1.5,
-                                height: 35,
-                                displayValue: true,
-                                fontSize: 10
+                                width: 1.2,
+                                height: 26,
+                                displayValue: false,
+                                margin: 0
                             });
                         }, 100);
 
