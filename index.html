@@ -13,7 +13,7 @@
     <!-- JsBarcode for UPC/Barcode generation -->
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     
-    <!-- Thermal Printer CSS Fix for Clabel CT221D (2 inches wide x 1 inch tall) -->
+    <!-- Thermal Printer CSS Fix for Clabel CT221D (48mm wide x 120mm long) -->
     <style>
         @media print {
             body * {
@@ -26,19 +26,19 @@
                 position: absolute;
                 left: 0;
                 top: 0;
-                width: 2in;
-                height: 1in;
-                max-width: 2in;
-                max-height: 1in;
+                width: 48mm;
+                height: 120mm;
+                max-width: 48mm;
+                max-height: 120mm;
                 margin: 0;
-                padding: 0.02in;
+                padding: 3mm;
                 overflow: hidden;
                 box-sizing: border-box;
                 text-align: center;
                 background: white;
             }
             @page {
-                size: 2in 1in;
+                size: 48mm 120mm;
                 margin: 0;
             }
         }
@@ -151,14 +151,25 @@
             <!-- UPC Barcode Preview Modal / Card -->
             <template x-if="lastCreatedBatch">
                 <div class="mt-8 p-6 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-center space-y-4 print:mt-0 print:p-0 print:border-none">
-                    <h3 class="font-bold text-slate-800 print:hidden">🖨️ Tray UPC Label Ready for CT221D Printer (2" x 1")</h3>
-                    <!-- Exact 2in x 1in sticker layout with widened barcode and larger fonts -->
-                    <div id="printableLabel" class="bg-white inline-block rounded shadow-sm print:shadow-none print:p-0" style="width: 2in; height: 1in; box-sizing: border-box; padding: 2px; display: flex; flex-direction: column; justify-content: space-between; align-items: center;">
-                        <p style="font-size: 11pt; font-weight: 900; line-height: 1; margin: 0; color: #000; letter-spacing: 0.5px;">GRIFFIN FAMILY FARMS</p>
-                        <svg id="barcodeElement" style="width: 1.95in; height: 0.42in; display: block; margin: 0 auto;"></svg>
-                        <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 2px; box-sizing: border-box;">
-                            <span style="font-size: 10pt; font-family: monospace; font-weight: 800; line-height: 1; margin: 0;" x-text="lastCreatedBatch.upc_code"></span>
-                            <span style="font-size: 10pt; font-weight: 800; line-height: 1; margin: 0;" x-text="lastCreatedBatch.batch_code + ' | ' + lastCreatedBatch.rack_location"></span>
+                    <h3 class="font-bold text-slate-800 print:hidden">🖨️ Tray UPC Label Ready for CT221D Printer (48mm x 120mm)</h3>
+                    <!-- Exact 48mm x 120mm thermal label layout -->
+                    <div id="printableLabel" class="bg-white inline-block rounded shadow-sm print:shadow-none print:p-0" style="width: 48mm; height: 120mm; box-sizing: border-box; padding: 4mm; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; gap: 8mm;">
+                        <div style="text-align: center; width: 100%; border-bottom: 2px solid #000; padding-bottom: 4mm;">
+                            <p style="font-size: 16pt; font-weight: 900; line-height: 1.1; margin: 0; color: #000;">GRIFFIN FAMILY FARMS</p>
+                            <p style="font-size: 11pt; font-weight: 700; margin: 2mm 0 0 0; color: #333;" x-text="lastCreatedBatch.crops?.name"></p>
+                        </div>
+
+                        <div style="width: 100%; text-align: center; margin: 10mm 0;">
+                            <svg id="barcodeElement" style="width: 42mm; height: 35mm; display: block; margin: 0 auto;"></svg>
+                            <p style="font-size: 14pt; font-family: monospace; font-weight: 800; line-height: 1.2; margin: 3mm 0 0 0;" x-text="lastCreatedBatch.upc_code"></p>
+                        </div>
+
+                        <div style="width: 100%; text-align: left; background: #f3f4f6; padding: 4mm; border-radius: 2mm; box-sizing: border-box; font-size: 11pt; font-weight: 700; line-height: 1.4;">
+                            <p style="margin: 0;"><strong>Batch:</strong> <span x-text="lastCreatedBatch.batch_code"></span></p>
+                            <p style="margin: 1mm 0 0 0;"><strong>Location:</strong> <span x-text="lastCreatedBatch.rack_location"></span></p>
+                            <p style="margin: 1mm 0 0 0;"><strong>Lot:</strong> <span x-text="lastCreatedBatch.lot_code"></span></p>
+                            <p style="margin: 1mm 0 0 0;"><strong>Sown:</strong> <span x-text="new Date(lastCreatedBatch.sown_date).toLocaleDateString()"></span></p>
+                            <p style="margin: 1mm 0 0 0;"><strong>Harvest Target:</strong> <span x-text="new Date(lastCreatedBatch.target_harvest_date).toLocaleDateString()"></span></p>
                         </div>
                     </div>
                     <div class="print:hidden">
@@ -306,8 +317,8 @@
                         setTimeout(() => {
                             JsBarcode("#barcodeElement", data.upc_code, {
                                 format: "CODE128",
-                                width: 1.25,
-                                height: 21,
+                                width: 2.1,
+                                height: 50,
                                 displayValue: false,
                                 margin: 0
                             });
