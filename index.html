@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Griffin Family Farms - Crop & UPC Tracker</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- JsBarcode for UPC/Barcode generation -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-950 font-sans antialiased" x-data="farmApp()">
+
+    <!-- Navigation Header -->
+    <header class="bg-emerald-800 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div>
+                <h1 class="text-lg font-bold tracking-tight">🌱 Griffin Family Farms</h1>
+                <p class="text-xs text-emerald-200">Indoor Crop & UPC Tray Tracker</p>
+            </div>
+            <nav class="flex gap-2">
+                <button @click="activeTab = 'dashboard'" :class="activeTab === 'dashboard' ? 'bg-emerald-900' : 'hover:bg-emerald-700'" class="px-3 py-1.5 rounded text-sm font-medium transition">Dashboard</button>
+                <button @click="activeTab = 'sow'" :class="activeTab === 'sow' ? 'bg-emerald-900' : 'hover:bg-emerald-700'" class="px-3 py-1.5 rounded text-sm font-medium transition">Sow New Batch</button>
+                <button @click="activeTab = 'batches'" :class="activeTab === 'batches' ? 'bg-emerald-900' : 'hover:bg-emerald-700'" class="px-3 py-1.5 rounded text-sm font-medium transition">Active Trays</button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto px-4 py-6">
+
+        <!-- ERROR / SUCCESS ALERTS -->
+        <template x-if="alertMessage">
+            <div class="mb-4 p-4 rounded-lg text-sm font-medium" :class="alertType === 'error' ? 'bg-red-100 text-red-800 border border-red-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'" x-text="alertMessage"></div>
+        </template>
+
+        <!-- TAB 1: DASHBOARD (Today's Actions) -->
+        <div x-show="activeTab === 'dashboard'" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Active Trays in Room</h3>
+                    <p class="text-3xl font-extrabold text-emerald-700 mt-1" x-text="stats.activeTrays">0</p>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Due for Harvest This Week</h3>
+                    <p class="text-3xl font-extrabold text-amber-600 mt-1" x-text="stats.dueHarvest">0</p>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Ready to Uncover / Light</h3>
+                    <p class="text-3xl font-extrabold text-blue-600 mt-1" x-text="stats.dueUncover">0</p>
+                </div>
+            </div>
+
+            <!-- Quick Task Queue -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <h2 class="text-base font-bold text-slate-800 mb-4">📋 Today's Grow Room Queue</h2>
+                <div class="space-y-3">
+                    <template x-for="batch in queueBatches" :key="batch.id">
+                        <div class="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-100">
+                            <div>
+                                <span class="inline-block px-2 py-0.5 text-xs font-semibold rounded bg-emerald-100 text-emerald-800 mb-1" x-text="batch.crops?.name"></span>
+                                <h4 class="font-bold text-slate-900" x-text="batch.batch_code"></h4>
+                                <p class="text-xs text-slate-500">Location: <span x-text="batch.rack_location || 'Unassigned'"></span> | Status: <span class="capitalize font-medium" x-text="batch.status"></span></p>
+                            </div>
+                            <div class="flex gap-2">
+                                <template x-if="batch.status === 'germination'">
+                                    <button @click="updateBatchStatus(batch.id, 'lit')" class="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 transition">Uncover to Light</button>
+                                </template>
+                                <template x-if="batch.status === 'lit'">
+                                    <button @click="updateBatchStatus(batch.id, 'harvested')" class="px-3 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded hover:bg-emerald-700 transition">Mark Harvested</button>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                    <template x-if="queueBatches.length === 0">
+                        <p class="text-sm text-slate-500 py-4 text-center">No active actions required right now. All trays are on schedule!</p>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: SOW NEW BATCH (UPC Label Generator) -->
+        <div x-show="activeTab === 'sow'" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 max-w-2xl mx-auto">
+            <h2 class="text-xl font-bold text-slate-800 mb-6">🌱 Sow New Batch & Generate UPC Tray Label</h2>
+            <form @submit.prevent="sowBatch" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Select Crop Variety</label>
+                    <select x-model="newBatch.crop_id" @change="onCropSelect()" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500" required>
+                        <option value="">-- Choose Crop --</option>
+                        <template x-for="crop in crops" :key="crop.id">
+                            <option :value="crop.id" x-text="crop.name + ' (' + crop.category + ')'"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Rack & Shelf Location</label>
+                    <input type="text" x-model="newBatch.rack_location" placeholder="e.g., Rack 01 - Shelf 3" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" required>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Custom Lot Code (for Traceability)</label>
+                    <input type="text" x-model="newBatch.lot_code" placeholder="e.g., LOT 111726-A" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" required>
+                </div>
+
+                <div class="p-4 bg-emerald-50 rounded-lg border border-emerald-100 text-sm text-emerald-900 space-y-1">
+                    <p><strong>Calculated Parameters:</strong></p>
+                    <p>• Germination Blackout: <span x-text="selectedCrop?.germination_days || 0"></span> days</p>
+                    <p>• Grow-Out Under Lights: <span x-text="selectedCrop?.grow_out_days || 0"></span> days</p>
+                    <p>• Target Seeding Density: <span x-text="selectedCrop?.target_seeding_density_g || 0"></span> grams</p>
+                </div>
+
+                <button type="submit" class="w-full py-2.5 bg-emerald-700 text-white font-semibold rounded-lg hover:bg-emerald-800 transition">Save Batch & Print UPC Label</button>
+            </form>
+
+            <!-- UPC Barcode Preview Modal / Card -->
+            <template x-if="lastCreatedBatch">
+                <div class="mt-8 p-6 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-center space-y-4">
+                    <h3 class="font-bold text-slate-800">🖨️ Tray UPC Label Ready for CT221D Printer</h3>
+                    <div class="bg-white p-4 inline-block rounded shadow-sm">
+                        <svg id="barcodeElement"></svg>
+                        <p class="text-xs font-mono font-bold mt-2" x-text="lastCreatedBatch.upc_code"></p>
+                        <p class="text-xs text-slate-600 font-medium" x-text="lastCreatedBatch.batch_code + ' | ' + lastCreatedBatch.lot_code"></p>
+                    </div>
+                    <div>
+                        <button @click="printLabel()" class="px-4 py-2 bg-slate-800 text-white text-xs font-semibold rounded hover:bg-slate-900 transition">Print Label on Thermal Printer</button>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- TAB 3: ACTIVE BATCHES TABLE -->
+        <div x-show="activeTab === 'batches'" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h2 class="text-base font-bold text-slate-800 mb-4">📦 Active Growing Trays</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-slate-600">
+                    <thead class="bg-slate-100 text-slate-700 text-xs uppercase font-semibold">
+                        <tr>
+                            <th class="p-3">Batch Code</th>
+                            <th class="p-3">Crop</th>
+                            <th class="p-3">Location</th>
+                            <th class="p-3">Status</th>
+                            <th class="p-3">Sown Date</th>
+                            <th class="p-3">Target Harvest</th>
+                            <th class="p-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200">
+                        <template x-for="batch in batches" :key="batch.id">
+                            <tr>
+                                <td class="p-3 font-mono font-bold text-slate-900" x-text="batch.batch_code"></td>
+                                <td class="p-3 font-medium text-slate-800" x-text="batch.crops?.name"></td>
+                                <td class="p-3" x-text="batch.rack_location"></td>
+                                <td class="p-3">
+                                    <span class="px-2 py-0.5 text-xs font-semibold rounded capitalize" :class="{
+                                        'bg-amber-100 text-amber-800': batch.status === 'germination',
+                                        'bg-blue-100 text-blue-800': batch.status === 'lit',
+                                        'bg-emerald-100 text-emerald-800': batch.status === 'harvested',
+                                        'bg-red-100 text-red-800': batch.status === 'culled'
+                                    }" x-text="batch.status"></span>
+                                </td>
+                                <td class="p-3" x-text="new Date(batch.sown_date).toLocaleDateString()"></td>
+                                <td class="p-3" x-text="new Date(batch.target_harvest_date).toLocaleDateString()"></td>
+                                <td class="p-3 flex gap-2">
+                                    <button @click="deleteBatch(batch.id)" class="text-red-600 hover:text-red-800 text-xs font-medium">Delete</button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Supabase Connection & App Logic -->
+    <script>
+        // REPLACE WITH YOUR SUPABASE CREDENTIALS
+        const SUPABASE_URL = 'https://aldojeedzthqkwuldear.supabase.co';
+        const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_GnEz9jqLX008UL0Et6sBMQ_Tq2zCNbX';
+        
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+        function farmApp() {
+            return {
+                activeTab: 'dashboard',
+                crops: [],
+                batches: [],
+                queueBatches: [],
+                selectedCrop: null,
+                lastCreatedBatch: null,
+                alertMessage: '',
+                alertType: 'success',
+                stats: { activeTrays: 0, dueHarvest: 0, dueUncover: 0 },
+                newBatch: {
+                    crop_id: '',
+                    rack_location: '',
+                    lot_code: 'LOT ' + new Date().toISOString().slice(5,10).replace(/-/g,'') + '-A'
+                },
+
+                async init() {
+                    await this.fetchCrops();
+                    await this.fetchBatches();
+                },
+
+                showAlert(msg, type = 'success') {
+                    this.alertMessage = msg;
+                    this.alertType = type;
+                    setTimeout(() => { this.alertMessage = ''; }, 4000);
+                },
+
+                async fetchCrops() {
+                    const { data, error } = await supabaseClient.from('crops').select('*').order('name');
+                    if (error) this.showAlert('Error loading crops: ' + error.message, 'error');
+                    else this.crops = data || [];
+                },
+
+                async fetchBatches() {
+                    const { data, error } = await supabaseClient.from('batches').select('*, crops(name, category)').order('sown_date', { ascending: false });
+                    if (error) {
+                        this.showAlert('Error loading batches: ' + error.message, 'error');
+                    } else {
+                        this.batches = data || [];
+                        this.queueBatches = this.batches.filter(b => b.status === 'germination' || b.status === 'lit');
+                        
+                        // Compute Stats
+                        this.stats.activeTrays = this.batches.filter(b => b.status !== 'harvested' && b.status !== 'culled').length;
+                        this.stats.dueUncover = this.batches.filter(b => b.status === 'germination').length;
+                        this.stats.dueHarvest = this.batches.filter(b => b.status === 'lit').length;
+                    }
+                },
+
+                onCropSelect() {
+                    this.selectedCrop = this.crops.find(c => c.id === this.newBatch.crop_id);
+                },
+
+                async sowBatch() {
+                    if (!this.selectedCrop) return;
+
+                    const dateStr = new Date().toISOString().slice(2,10).replace(/-/g,'');
+                    const randomId = Math.floor(10 + Math.random() * 90);
+                    const batchCode = `GFF-${dateStr}-${this.selectedCrop.name.slice(0,3).toUpperCase()}-${randomId}`;
+                    const upcCode = `8500${Math.floor(100000000 + Math.random() * 900000000)}`;
+
+                    // Calculate target harvest date (germination + grow out days)
+                    const totalDays = this.selectedCrop.germination_days + this.selectedCrop.grow_out_days;
+                    const targetHarvest = new Date();
+                    targetHarvest.setDate(targetHarvest.getDate() + totalDays);
+
+                    const payload = {
+                        batch_code: batchCode,
+                        upc_code: upcCode,
+                        crop_id: this.newBatch.crop_id,
+                        rack_location: this.newBatch.rack_location,
+                        status: 'germination',
+                        target_harvest_date: targetHarvest.toISOString(),
+                        lot_code: this.newBatch.lot_code,
+                        notes: `Sown at ${this.selectedCrop.target_seeding_density_g}g density.`
+                    };
+
+                    const { data, error } = await supabaseClient.from('batches').insert([payload]).select('*, crops(name)').single();
+
+                    if (error) {
+                        this.showAlert('Error creating batch: ' + error.message, 'error');
+                    } else {
+                        this.showAlert('Batch successfully sown and registered in database!');
+                        this.lastCreatedBatch = data;
+                        await this.fetchBatches();
+
+                        // Generate Barcode on screen for Clabel CT221D thermal printing
+                        setTimeout(() => {
+                            JsBarcode("#barcodeElement", data.upc_code, {
+                                format: "CODE128",
+                                width: 2,
+                                height: 50,
+                                displayValue: true
+                            });
+                        }, 100);
+
+                        // Reset form
+                        this.newBatch.rack_location = '';
+                    }
+                },
+
+                async updateBatchStatus(id, newStatus) {
+                    const { error } = await supabaseClient.from('batches').update({ status: newStatus }).eq('id', id);
+                    if (error) {
+                        this.showAlert('Error updating batch: ' + error.message, 'error');
+                    } else {
+                        this.showAlert(`Batch status updated to ${newStatus}!`);
+                        await this.fetchBatches();
+                    }
+                },
+
+                async deleteBatch(id) {
+                    if (!confirm('Are you sure you want to delete this tray batch?')) return;
+                    const { error } = await supabaseClient.from('batches').delete().eq('id', id);
+                    if (error) {
+                        this.showAlert('Error deleting batch: ' + error.message, 'error');
+                    } else {
+                        this.showAlert('Batch deleted successfully.');
+                        await this.fetchBatches();
+                    }
+                },
+
+                printLabel() {
+                    const printWindow = window.open('', '_blank');
+                    printWindow.document.write(`
+                        <html>
+                        <head><title>Print UPC Label - CT221D</title></head>
+                        <body style="text-align:center; font-family:monospace; margin-top:20px;">
+                            <h3>GRIFFIN FAMILY FARMS</h3>
+                            <p>${this.lastCreatedBatch.batch_code}</p>
+                            <div>${document.querySelector('.bg-white.p-4.inline-block').innerHTML}</div>
+                            <p>${this.lastCreatedBatch.lot_code}</p>
+                            <script>window.print(); window.close();<\/script>
+                        </body>
+                        </html>
+                    `);
+                    printWindow.document.close();
+                }
+            }
+        }
+    </script>
+</body>
+</html>
