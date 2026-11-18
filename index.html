@@ -13,7 +13,7 @@
     <!-- JsBarcode for UPC/Barcode generation -->
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     
-    <!-- Thermal Printer CSS Fix for Clabel CT221D (120mm wide x 48mm tall landscape) -->
+    <!-- Thermal Printer CSS Fix for Clabel CT221D (120mm x 48mm forced orientation) -->
     <style>
         @media print {
             body * {
@@ -39,9 +39,10 @@
                 justify-content: space-between;
                 align-items: center;
                 background: white;
+                transform-origin: top left;
             }
             @page {
-                size: 120mm 48mm landscape;
+                size: 48mm 120mm;
                 margin: 0;
             }
         }
@@ -154,8 +155,8 @@
             <!-- UPC Barcode Preview Modal / Card -->
             <template x-if="lastCreatedBatch">
                 <div class="mt-8 p-6 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-center space-y-4 print:mt-0 print:p-0 print:border-none">
-                    <h3 class="font-bold text-slate-800 print:hidden">🖨️ Tray UPC Label Ready for CT221D Printer (120mm x 48mm Landscape)</h3>
-                    <!-- Exact 120mm x 48mm landscape thermal label layout (Left: Text details, Right: Barcode) -->
+                    <h3 class="font-bold text-slate-800 print:hidden">🖨️ Tray UPC Label Ready for CT221D Printer (120mm x 48mm)</h3>
+                    <!-- Exact 120mm x 48mm thermal label layout -->
                     <div id="printableLabel" class="bg-white inline-block rounded shadow-sm print:shadow-none print:p-0" style="width: 120mm; height: 48mm; box-sizing: border-box; padding: 2mm; display: flex; flex-direction: row; justify-content: space-between; align-items: center;">
                         
                         <!-- Left Side: Text Details -->
@@ -291,7 +292,7 @@
 
                     const dateStr = new Date().toISOString().slice(2,10).replace(/-/g,'');
                     const randomId = Math.floor(10 + Math.random() * 90);
-                    const batchCode = `GFF-${dateStr}-${this.selectedCrop.name.slice(0,3).toUpperCase()}-${randomId}`;
+                    const batchCode = `GFF-${dateStr}-${this.selectedCrop.name.slice(0,3).toUpperCase()}-{randomId}`;
                     const upcCode = `8500${Math.floor(100000000 + Math.random() * 900000000)}`;
 
                     const totalDays = this.selectedCrop.germination_days + this.selectedCrop.grow_out_days;
