@@ -13,7 +13,7 @@
     <!-- JsBarcode for UPC/Barcode generation -->
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     
-    <!-- Thermal Printer CSS for Clabel CT221D (120mm x 48mm Native Landscape with Increased Font Sizes) -->
+    <!-- Thermal Printer CSS for Clabel CT221D (Correct Rotated Landscape Layout) -->
     <style>
         @media print {
             body * {
@@ -23,9 +23,9 @@
                 visibility: visible;
             }
             #printableLabel {
-                position: absolute;
-                left: 0;
+                position: fixed;
                 top: 0;
+                left: 48mm;
                 width: 120mm;
                 height: 48mm;
                 max-width: 120mm;
@@ -39,9 +39,11 @@
                 justify-content: space-between;
                 align-items: center;
                 background: white;
+                transform: rotate(90deg);
+                transform-origin: top left;
             }
             @page {
-                size: 120mm 48mm landscape;
+                size: 48mm 120mm;
                 margin: 0;
             }
         }
@@ -155,10 +157,10 @@
             <template x-if="lastCreatedBatch">
                 <div class="mt-8 p-6 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-center space-y-4 print:mt-0 print:p-0 print:border-none">
                     <h3 class="font-bold text-slate-800 print:hidden">🖨️ Tray UPC Label Ready for CT221D Printer (120mm x 48mm Landscape)</h3>
-                    <!-- Exact 120mm x 48mm landscape thermal label layout with larger, high-visibility fonts (15pt-17pt) -->
+                    <!-- Exact 120mm x 48mm landscape thermal label layout with large font size -->
                     <div id="printableLabel" class="bg-white inline-block rounded shadow-sm print:shadow-none" style="width: 120mm; height: 48mm; box-sizing: border-box; padding: 2mm; display: flex; flex-direction: row; justify-content: space-between; align-items: center;">
                         
-                        <!-- Left Side: Text Details (Enlarged Font Size) -->
+                        <!-- Left Side: Text Details with Large Font -->
                         <div style="width: 58%; text-align: left; display: flex; flex-direction: column; justify-content: center; gap: 0.5mm; font-size: 14.5pt; font-weight: 900; line-height: 1.1; color: #000;">
                             <p style="font-size: 16pt; font-weight: 900; margin: 0 0 0.8mm 0; border-bottom: 2.5px solid #000; padding-bottom: 0.8mm;">GRIFFIN FAMILY FARMS</p>
                             <p style="margin: 0; font-size: 15pt;" x-text="'Crop: ' + (lastCreatedBatch.crops?.name || '')"></p>
@@ -327,7 +329,7 @@
                             });
                         }, 100);
 
-                        this.newBatch.rack_location = `Rack 01 - Shelf 3`;
+                        this.newBatch.rack_location = '';
                     }
                 },
 
