@@ -97,17 +97,25 @@
                 <h2 class="text-base font-bold text-slate-800 mb-4">📋 Today's Grow Room Queue</h2>
                 <div class="space-y-3">
                     <template x-for="batch in queueBatches" :key="batch.id">
-                        <div class="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-100">
-                            <div>
-                                <span class="inline-block px-2 py-0.5 text-xs font-semibold rounded bg-emerald-100 text-emerald-800 mb-1" x-text="batch.crops?.name"></span>
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-slate-50 rounded-lg border border-slate-100">
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-2">
+                                    <span class="inline-block px-2 py-0.5 text-xs font-semibold rounded bg-emerald-100 text-emerald-800" x-text="batch.crops?.name"></span>
+                                    <span class="text-xs text-slate-500">Sown: <strong x-text="formatShortDate(batch.sown_date)"></strong></span>
+                                </div>
                                 <h4 class="font-bold text-slate-900" x-text="batch.batch_code"></h4>
                                 <p class="text-xs text-slate-500">
                                     Location: <span x-text="batch.rack_location || 'Unassigned'"></span> |
                                     Stage: <span class="capitalize font-medium" x-text="batch.status"></span> |
                                     Target Yield: <span x-text="formatYieldRange(batch.crops)"></span>
                                 </p>
+                                <p class="text-xs font-medium text-emerald-900 bg-emerald-50 border border-emerald-100 rounded px-2.5 py-1 inline-block mt-1">
+                                    Target Uncover: <strong x-text="getTargetUncoverDate(batch)"></strong>
+                                    <span class="mx-1.5 text-slate-400">|</span>
+                                    Target Harvest: <strong x-text="getTargetHarvestDate(batch)"></strong>
+                                </p>
                             </div>
-                            <div class="flex gap-2">
+                            <div class="flex gap-2 shrink-0">
                                 <template x-if="batch.status === 'germination'">
                                     <button @click="uncoverBatch(batch)" class="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 transition">Uncover to Light</button>
                                 </template>
@@ -442,6 +450,57 @@
                         const matchesSearch = !q || c.name.toLowerCase().includes(q) || (c.category || '').toLowerCase().includes(q);
                         return matchesCat && matchesSearch;
                     });
+                },
+
+                addDays(dateInput, days) {
+                    if (!dateInput || days == null || isNaN(days)) return null;
+                    const d = new Date(dateInput);
+                    if (isNaN(d.getTime())) return null;
+                    d.setDate(d.getDate() + Number(days));
+                    return d;
+                },
+
+                formatShortDate(dateInput) {
+                    if (!dateInput) return '—';
+                    const d = new Date(dateInput);
+                    if (isNaN(d.getTime())) return '—';
+                    return d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
+                },
+
+                getTargetUncoverDate(batch) {
+                    if (!batch?.sown_date) return '—';
+                    const minDays = batch.crops?.germination_days ?? 0;
+                    const maxDays = batch.crops?.germ_days_max ?? minDays;
+                    const startDate = this.addDays(batch.sown_date, minDays);
+                    if (!startDate) return '—';
+                    if (maxDays > minDays) {
+                        const endDate = this.addDays(batch.sown_date, maxDays);
+                        return `${this.formatShortDate(startDate)}–${this.formatShortDate(endDate)}`;
+                    }
+                    return this.formatShortDate(startDate);
+                },
+
+                getTargetHarvestDate(batch) {
+                    if (!batch?.sown_date) return '—';
+                    const crop = batch.crops;
+                    const minGerm = crop?.germination_days ?? 0;
+                    const maxGerm = crop?.germ_days_max ?? minGerm;
+                    const minLight = crop?.grow_out_days ?? 0;
+                    const maxLight = crop?.grow_out_days_max ?? minLight;
+
+                    const minTotalDays = minGerm + minLight;
+                    const maxTotalDays = maxGerm + maxLight;
+
+                    const fallbackStart = this.addDays(batch.sown_date, minTotalDays);
+                    const startDate = batch.target_harvest_date ? new Date(batch.target_harvest_date) : fallbackStart;
+                    if (!startDate || isNaN(startDate.getTime())) return '—';
+
+                    if (maxTotalDays > minTotalDays) {
+                        const extraDays = maxTotalDays - minTotalDays;
+                        const endDate = this.addDays(startDate, extraDays);
+                        return `${this.formatShortDate(startDate)}–${this.formatShortDate(endDate)}`;
+                    }
+                    return this.formatShortDate(startDate);
                 },
 
                 cropsByCategory(cat) {
