@@ -57,6 +57,7 @@
                 <button @click="activeTab = 'dashboard'" :class="activeTab === 'dashboard' ? 'bg-emerald-900' : 'hover:bg-emerald-700'" class="px-3 py-1.5 rounded text-sm font-medium transition">Dashboard</button>
                 <button @click="activeTab = 'sow'" :class="activeTab === 'sow' ? 'bg-emerald-900' : 'hover:bg-emerald-700'" class="px-3 py-1.5 rounded text-sm font-medium transition">Sow New Batch</button>
                 <button @click="activeTab = 'batches'" :class="activeTab === 'batches' ? 'bg-emerald-900' : 'hover:bg-emerald-700'" class="px-3 py-1.5 rounded text-sm font-medium transition">Active Trays</button>
+                <button @click="activeTab = 'projections'" :class="activeTab === 'projections' ? 'bg-emerald-900' : 'hover:bg-emerald-700'" class="px-3 py-1.5 rounded text-sm font-medium transition">Projections</button>
                 <button @click="activeTab = 'library'" :class="activeTab === 'library' ? 'bg-emerald-900' : 'hover:bg-emerald-700'" class="px-3 py-1.5 rounded text-sm font-medium transition">Crop Library</button>
                 <button @click="activeTab = 'logs'" :class="activeTab === 'logs' ? 'bg-emerald-900' : 'hover:bg-emerald-700'" class="px-3 py-1.5 rounded text-sm font-medium transition">Task Logs</button>
             </nav>
@@ -259,7 +260,177 @@
             </div>
         </div>
 
-        <!-- TAB 4: CROP SOP LIBRARY (All 44 Varieties & Ranges) -->
+        <!-- TAB 4: PROJECTIONS (Active Trays Yield & Revenue Pivots) -->
+        <div x-show="activeTab === 'projections'" class="space-y-6 print:hidden">
+            <!-- Top KPI Summary Cards for Active Trays -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Active Trays Projected</h3>
+                    <p class="text-3xl font-extrabold text-emerald-700 mt-1" x-text="projectionTotals.trayCount">0</p>
+                    <p class="text-xs text-slate-400 mt-1">Excludes harvested & culled</p>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Projected Yield (oz)</h3>
+                    <p class="text-3xl font-extrabold text-slate-900 mt-1" x-text="projectionTotals.yieldMidOz.toFixed(1) + ' oz'"></p>
+                    <p class="text-xs text-slate-500 mt-1" x-text="'Range: ' + projectionTotals.yieldMinOz.toFixed(1) + '–' + projectionTotals.yieldMaxOz.toFixed(1) + ' oz'"></p>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Projected Wholesale ($)</h3>
+                    <p class="text-3xl font-extrabold text-blue-700 mt-1" x-text="formatCurrency(projectionTotals.wholesaleMid)"></p>
+                    <p class="text-xs text-slate-500 mt-1" x-text="'Range: ' + formatCurrency(projectionTotals.wholesaleMin) + '–' + formatCurrency(projectionTotals.wholesaleMax)"></p>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Projected Retail ($)</h3>
+                    <p class="text-3xl font-extrabold text-emerald-600 mt-1" x-text="formatCurrency(projectionTotals.retailMid)"></p>
+                    <p class="text-xs text-slate-500 mt-1" x-text="'Range: ' + formatCurrency(projectionTotals.retailMin) + '–' + formatCurrency(projectionTotals.retailMax)"></p>
+                </div>
+            </div>
+
+            <!-- Pivot Controls & Date Range Filter -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-5">
+                <div class="flex flex-wrap justify-between items-center gap-4 border-b border-slate-100 pb-4">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-800">📈 Active Tray Yield & Revenue Projections</h2>
+                        <p class="text-xs text-slate-500">Calculated dynamically from unharvested trays in Active Trays using target yields and wholesale/retail per-oz rates.</p>
+                    </div>
+
+                    <!-- Pivot Mode Switcher -->
+                    <div class="inline-flex rounded-lg bg-slate-100 p-1">
+                        <button @click="projectionPivot = 'product'" :class="projectionPivot === 'product' ? 'bg-emerald-700 text-white shadow-sm' : 'text-slate-700 hover:text-slate-900'" class="px-3.5 py-1.5 rounded-md text-xs font-semibold transition">
+                            Pivot by Product
+                        </button>
+                        <button @click="projectionPivot = 'dateRange'" :class="projectionPivot === 'dateRange' ? 'bg-emerald-700 text-white shadow-sm' : 'text-slate-700 hover:text-slate-900'" class="px-3.5 py-1.5 rounded-md text-xs font-semibold transition">
+                            Pivot by Date Range
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Optional Date Window Filter for Active Trays -->
+                <div class="flex flex-wrap items-end gap-4 bg-slate-50 p-3.5 rounded-lg border border-slate-200 text-xs">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Target Harvest From</label>
+                        <input type="date" x-model="projectionDateFrom" class="rounded border border-slate-300 px-2.5 py-1.5 bg-white">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Target Harvest To</label>
+                        <input type="date" x-model="projectionDateTo" class="rounded border border-slate-300 px-2.5 py-1.5 bg-white">
+                    </div>
+                    <button @click="projectionDateFrom = ''; projectionDateTo = ''" class="px-3 py-1.5 bg-white border border-slate-300 rounded font-medium text-slate-700 hover:bg-slate-100">
+                        Reset Dates
+                    </button>
+                    <span class="text-slate-500 ml-auto" x-text="filteredActiveProjectionBatches.length + ' matching active trays'"></span>
+                </div>
+
+                <!-- PIVOT 1: BY PRODUCT -->
+                <div x-show="projectionPivot === 'product'" class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-600">
+                        <thead class="bg-slate-100 text-slate-700 text-xs uppercase font-semibold">
+                            <tr>
+                                <th class="p-3">Product (Variety)</th>
+                                <th class="p-3">Category</th>
+                                <th class="p-3 text-center">Active Trays</th>
+                                <th class="p-3">Projected Yield (oz)</th>
+                                <th class="p-3">Whsl / oz</th>
+                                <th class="p-3">Projected Wholesale ($)</th>
+                                <th class="p-3">Retail / oz</th>
+                                <th class="p-3">Projected Retail ($)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200">
+                            <template x-for="row in projectionsByProduct" :key="row.key">
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-3 font-bold text-slate-900" x-text="row.productName"></td>
+                                    <td class="p-3 text-xs text-slate-500" x-text="row.category"></td>
+                                    <td class="p-3 text-center font-bold text-emerald-800" x-text="row.trayCount"></td>
+                                    <td class="p-3 font-medium text-slate-900">
+                                        <span x-text="row.yieldMidOz.toFixed(1) + ' oz'"></span>
+                                        <span class="block text-xs text-slate-400" x-text="row.yieldMinOz.toFixed(1) + '–' + row.yieldMaxOz.toFixed(1) + ' oz'"></span>
+                                    </td>
+                                    <td class="p-3 text-xs" x-text="formatRateRange(row.whslMin, row.whslMax)"></td>
+                                    <td class="p-3 font-bold text-blue-700">
+                                        <span x-text="formatCurrency(row.wholesaleMid)"></span>
+                                        <span class="block text-xs font-normal text-slate-400" x-text="formatCurrency(row.wholesaleMin) + '–' + formatCurrency(row.wholesaleMax)"></span>
+                                    </td>
+                                    <td class="p-3 text-xs" x-text="formatRateRange(row.retailMin, row.retailMax)"></td>
+                                    <td class="p-3 font-bold text-emerald-700">
+                                        <span x-text="formatCurrency(row.retailMid)"></span>
+                                        <span class="block text-xs font-normal text-slate-400" x-text="formatCurrency(row.retailMin) + '–' + formatCurrency(row.retailMax)"></span>
+                                    </td>
+                                </tr>
+                            </template>
+                            <template x-if="projectionsByProduct.length === 0">
+                                <tr><td colspan="8" class="p-6 text-center text-slate-500 text-sm">No active trays match the current filter. Sow a new batch to project yields and revenue.</td></tr>
+                            </template>
+                        </tbody>
+                        <tfoot x-show="projectionsByProduct.length > 0" class="bg-slate-100 font-bold text-slate-900 text-sm border-t-2 border-slate-300">
+                            <tr>
+                                <td class="p-3" colspan="2">Total Active Projections</td>
+                                <td class="p-3 text-center text-emerald-800" x-text="projectionTotals.trayCount"></td>
+                                <td class="p-3" x-text="projectionTotals.yieldMidOz.toFixed(1) + ' oz'"></td>
+                                <td class="p-3">—</td>
+                                <td class="p-3 text-blue-800" x-text="formatCurrency(projectionTotals.wholesaleMid)"></td>
+                                <td class="p-3">—</td>
+                                <td class="p-3 text-emerald-800" x-text="formatCurrency(projectionTotals.retailMid)"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <!-- PIVOT 2: BY DATE RANGE -->
+                <div x-show="projectionPivot === 'dateRange'" class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-600">
+                        <thead class="bg-slate-100 text-slate-700 text-xs uppercase font-semibold">
+                            <tr>
+                                <th class="p-3">Projected Harvest Window</th>
+                                <th class="p-3">Crops Included</th>
+                                <th class="p-3 text-center">Active Trays</th>
+                                <th class="p-3">Projected Yield (oz)</th>
+                                <th class="p-3">Projected Wholesale ($)</th>
+                                <th class="p-3">Projected Retail ($)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200">
+                            <template x-for="bucket in projectionsByDateRange" :key="bucket.key">
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-3 font-bold text-slate-900">
+                                        <span x-text="bucket.label"></span>
+                                        <span class="block text-xs font-normal text-slate-400" x-text="bucket.dateSpan"></span>
+                                    </td>
+                                    <td class="p-3 text-xs text-slate-600" x-text="bucket.cropsList || '—'"></td>
+                                    <td class="p-3 text-center font-bold text-emerald-800" x-text="bucket.trayCount"></td>
+                                    <td class="p-3 font-medium text-slate-900">
+                                        <span x-text="bucket.yieldMidOz.toFixed(1) + ' oz'"></span>
+                                        <span class="block text-xs text-slate-400" x-text="bucket.yieldMinOz.toFixed(1) + '–' + bucket.yieldMaxOz.toFixed(1) + ' oz'"></span>
+                                    </td>
+                                    <td class="p-3 font-bold text-blue-700">
+                                        <span x-text="formatCurrency(bucket.wholesaleMid)"></span>
+                                        <span class="block text-xs font-normal text-slate-400" x-text="formatCurrency(bucket.wholesaleMin) + '–' + formatCurrency(bucket.wholesaleMax)"></span>
+                                    </td>
+                                    <td class="p-3 font-bold text-emerald-700">
+                                        <span x-text="formatCurrency(bucket.retailMid)"></span>
+                                        <span class="block text-xs font-normal text-slate-400" x-text="formatCurrency(bucket.retailMin) + '–' + formatCurrency(bucket.retailMax)"></span>
+                                    </td>
+                                </tr>
+                            </template>
+                            <template x-if="projectionsByDateRange.length === 0">
+                                <tr><td colspan="6" class="p-6 text-center text-slate-500 text-sm">No active trays match the selected harvest date range.</td></tr>
+                            </template>
+                        </tbody>
+                        <tfoot x-show="projectionsByDateRange.length > 0" class="bg-slate-100 font-bold text-slate-900 text-sm border-t-2 border-slate-300">
+                            <tr>
+                                <td class="p-3" colspan="2">Total Active Projections</td>
+                                <td class="p-3 text-center text-emerald-800" x-text="projectionTotals.trayCount"></td>
+                                <td class="p-3" x-text="projectionTotals.yieldMidOz.toFixed(1) + ' oz'"></td>
+                                <td class="p-3 text-blue-800" x-text="formatCurrency(projectionTotals.wholesaleMid)"></td>
+                                <td class="p-3 text-emerald-800" x-text="formatCurrency(projectionTotals.retailMid)"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 5: CROP SOP LIBRARY (All 44 Varieties & Ranges) -->
         <div x-show="activeTab === 'library'" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4 print:hidden">
             <div class="flex flex-wrap justify-between items-center gap-3">
                 <div>
@@ -311,7 +482,7 @@
             </div>
         </div>
 
-        <!-- TAB 5: TASK & ENVIRONMENT AUDIT LOGS -->
+        <!-- TAB 6: TASK & ENVIRONMENT AUDIT LOGS -->
         <div x-show="activeTab === 'logs'" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 print:hidden">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-base font-bold text-slate-800">🧾 Grow Room Task & Environment Logs</h2>
@@ -400,6 +571,53 @@
         
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
+        const CROP_PRICE_BENCHMARKS = {
+            'Arugula': { whsl: [1.75, 2.25], retail: [3.00, 3.50] },
+            'Broccoli': { whsl: [1.50, 2.00], retail: [2.50, 3.00] },
+            'Cabbage (Red/Green)': { whsl: [1.50, 2.00], retail: [2.50, 3.00] },
+            'Cauliflower': { whsl: [1.50, 2.00], retail: [2.50, 3.00] },
+            'Cress (Curled/Pepper)': { whsl: [2.00, 2.50], retail: [3.00, 3.50] },
+            'Kale (Red Russian/Toscano)': { whsl: [1.50, 2.00], retail: [2.50, 3.00] },
+            'Kohlrabi (Purple/Green)': { whsl: [1.75, 2.25], retail: [2.75, 3.25] },
+            'Lettuce (Romaine/Oakleaf)': { whsl: [1.50, 2.00], retail: [2.50, 3.00] },
+            'Mizuna': { whsl: [1.75, 2.25], retail: [2.75, 3.25] },
+            'Mustard (Garnet/Wasabi)': { whsl: [2.00, 2.50], retail: [3.00, 3.50] },
+            'Pak Choi / Tatsoi': { whsl: [1.75, 2.25], retail: [2.75, 3.25] },
+            'Radish (Rambo/Daikon/China Rose)': { whsl: [1.50, 1.85], retail: [2.50, 3.00] },
+            'Buckwheat': { whsl: [1.50, 2.00], retail: [2.50, 3.00] },
+            'Fava Bean': { whsl: [1.50, 2.00], retail: [2.50, 3.00] },
+            'Lentil (Green/Red/Black)': { whsl: [1.35, 1.75], retail: [2.25, 2.75] },
+            'Nasturtium': { whsl: [3.00, 4.00], retail: [4.50, 6.00] },
+            'Peas (Speckled/Dwarf/Tendril)': { whsl: [1.25, 1.65], retail: [2.00, 2.50] },
+            'Popcorn Shoots (Grown in Dark)': { whsl: [2.25, 3.00], retail: [3.50, 4.50] },
+            'Sunflower (Black Oil)': { whsl: [1.25, 1.65], retail: [2.00, 2.50] },
+            'Wheatgrass / Barley': { whsl: [1.25, 1.50], retail: [2.00, 2.50] },
+            'Amaranth (Red Garnet)': { whsl: [2.75, 3.50], retail: [4.00, 5.00] },
+            'Beets (Bull\'s Blood/Detroit)': { whsl: [2.25, 2.75], retail: [3.25, 4.00] },
+            'Borage': { whsl: [2.00, 2.75], retail: [3.25, 4.00] },
+            'Cantaloupe / Cucumber': { whsl: [2.00, 2.50], retail: [3.00, 3.75] },
+            'Clover (Red/Crimson)': { whsl: [1.50, 2.00], retail: [2.50, 3.00] },
+            'Orach (Red Mountain Spinach)': { whsl: [2.25, 3.00], retail: [3.50, 4.25] },
+            'Spinach': { whsl: [2.00, 2.75], retail: [3.25, 4.00] },
+            'Swiss Chard (Ruby/Rainbow)': { whsl: [2.25, 2.75], retail: [3.25, 4.00] },
+            'Basil (Genovese/Purple/Thai)': { whsl: [3.50, 4.50], retail: [5.00, 6.50] },
+            'Carrot': { whsl: [2.75, 3.50], retail: [4.00, 5.00] },
+            'Celery': { whsl: [3.00, 3.75], retail: [4.50, 5.50] },
+            'Chervil': { whsl: [3.00, 3.75], retail: [4.50, 5.50] },
+            'Chives / Onion / Leek': { whsl: [2.50, 3.25], retail: [3.75, 4.50] },
+            'Cilantro (Split Seed)': { whsl: [2.75, 3.50], retail: [4.00, 5.00] },
+            'Dill': { whsl: [2.75, 3.50], retail: [4.00, 5.00] },
+            'Fennel': { whsl: [2.75, 3.50], retail: [4.00, 5.00] },
+            'Fenugreek': { whsl: [2.00, 2.75], retail: [3.25, 4.00] },
+            'Lemon Balm / Mint': { whsl: [3.50, 4.25], retail: [5.00, 6.00] },
+            'Marigold (Signet/Gem)': { whsl: [3.00, 4.00], retail: [4.50, 5.50] },
+            'Oregano / Marjoram': { whsl: [3.50, 4.25], retail: [5.00, 6.00] },
+            'Parsley (Flat Leaf/Curled)': { whsl: [2.75, 3.50], retail: [4.25, 5.25] },
+            'Sage': { whsl: [3.00, 3.75], retail: [4.50, 5.50] },
+            'Shiso / Perilla (Green/Purple)': { whsl: [3.50, 4.50], retail: [5.00, 6.50] },
+            'Sorrel (Red Veined)': { whsl: [4.25, 5.50], retail: [6.00, 7.50] }
+        };
+
         function farmApp() {
             return {
                 activeTab: 'dashboard',
@@ -413,6 +631,9 @@
                 alertType: 'success',
                 librarySearch: '',
                 libraryCategoryFilter: '',
+                projectionPivot: 'product',
+                projectionDateFrom: '',
+                projectionDateTo: '',
                 stats: { activeTrays: 0, dueHarvest: 0, dueUncover: 0, totalYieldOz: 0 },
                 newBatch: {
                     crop_id: '',
@@ -452,12 +673,229 @@
                     });
                 },
 
+                get activeProjectionBatches() {
+                    return this.batches.filter(b => b.status !== 'harvested' && b.status !== 'culled');
+                },
+
+                get filteredActiveProjectionBatches() {
+                    return this.activeProjectionBatches.filter(b => {
+                        const hDate = this.getBatchHarvestDateObj(b);
+                        if (!hDate) return true;
+                        if (this.projectionDateFrom) {
+                            const fromD = new Date(this.projectionDateFrom + 'T00:00:00');
+                            if (hDate < fromD) return false;
+                        }
+                        if (this.projectionDateTo) {
+                            const toD = new Date(this.projectionDateTo + 'T23:59:59');
+                            if (hDate > toD) return false;
+                        }
+                        return true;
+                    });
+                },
+
+                getBatchPricing(crop) {
+                    const name = crop?.name || '';
+                    if (CROP_PRICE_BENCHMARKS[name]) {
+                        return CROP_PRICE_BENCHMARKS[name];
+                    }
+                    const matchedKey = Object.keys(CROP_PRICE_BENCHMARKS).find(k =>
+                        name.toLowerCase().includes(k.split(' (')[0].toLowerCase())
+                    );
+                    if (matchedKey) {
+                        return CROP_PRICE_BENCHMARKS[matchedKey];
+                    }
+                    const cat = (crop?.category || '').toLowerCase();
+                    if (cat.includes('herb') || cat.includes('aromatic')) {
+                        return { whsl: [2.75, 3.75], retail: [4.25, 5.50] };
+                    }
+                    if (cat.includes('shoot') || cat.includes('grain') || cat.includes('large')) {
+                        return { whsl: [1.50, 2.25], retail: [2.50, 3.50] };
+                    }
+                    if (cat.includes('color') || cat.includes('specialty')) {
+                        return { whsl: [2.00, 2.75], retail: [3.25, 4.00] };
+                    }
+                    return { whsl: [1.75, 2.25], retail: [2.75, 3.50] };
+                },
+
+                getBatchYieldBounds(crop) {
+                    const targetOz = parseFloat(crop?.target_yield_oz);
+                    const minOz = crop?.yield_min_oz != null ? parseFloat(crop.yield_min_oz) : (!isNaN(targetOz) ? targetOz : 4);
+                    const maxOz = crop?.yield_max_oz != null ? parseFloat(crop.yield_max_oz) : (!isNaN(targetOz) ? targetOz : minOz);
+                    const safeMin = isNaN(minOz) ? 0 : minOz;
+                    const safeMax = isNaN(maxOz) ? safeMin : Math.max(safeMin, maxOz);
+                    const mid = (safeMin + safeMax) / 2;
+                    return { min: safeMin, max: safeMax, mid };
+                },
+
+                calculateBatchProjection(batch) {
+                    const crop = batch.crops || {};
+                    const y = this.getBatchYieldBounds(crop);
+                    const p = this.getBatchPricing(crop);
+                    const whslMidRate = (p.whsl[0] + p.whsl[1]) / 2;
+                    const retailMidRate = (p.retail[0] + p.retail[1]) / 2;
+
+                    return {
+                        yieldMinOz: y.min,
+                        yieldMaxOz: y.max,
+                        yieldMidOz: y.mid,
+                        whslMinRate: p.whsl[0],
+                        whslMaxRate: p.whsl[1],
+                        retailMinRate: p.retail[0],
+                        retailMaxRate: p.retail[1],
+                        wholesaleMin: y.min * p.whsl[0],
+                        wholesaleMax: y.max * p.whsl[1],
+                        wholesaleMid: y.mid * whslMidRate,
+                        retailMin: y.min * p.retail[0],
+                        retailMax: y.max * p.retail[1],
+                        retailMid: y.mid * retailMidRate
+                    };
+                },
+
+                get projectionTotals() {
+                    return this.filteredActiveProjectionBatches.reduce((acc, b) => {
+                        const proj = this.calculateBatchProjection(b);
+                        acc.trayCount += 1;
+                        acc.yieldMinOz += proj.yieldMinOz;
+                        acc.yieldMaxOz += proj.yieldMaxOz;
+                        acc.yieldMidOz += proj.yieldMidOz;
+                        acc.wholesaleMin += proj.wholesaleMin;
+                        acc.wholesaleMax += proj.wholesaleMax;
+                        acc.wholesaleMid += proj.wholesaleMid;
+                        acc.retailMin += proj.retailMin;
+                        acc.retailMax += proj.retailMax;
+                        acc.retailMid += proj.retailMid;
+                        return acc;
+                    }, {
+                        trayCount: 0,
+                        yieldMinOz: 0,
+                        yieldMaxOz: 0,
+                        yieldMidOz: 0,
+                        wholesaleMin: 0,
+                        wholesaleMax: 0,
+                        wholesaleMid: 0,
+                        retailMin: 0,
+                        retailMax: 0,
+                        retailMid: 0
+                    });
+                },
+
+                get projectionsByProduct() {
+                    const map = new Map();
+                    for (const b of this.filteredActiveProjectionBatches) {
+                        const crop = b.crops || {};
+                        const key = crop.id || crop.name || 'unknown';
+                        const proj = this.calculateBatchProjection(b);
+
+                        if (!map.has(key)) {
+                            map.set(key, {
+                                key,
+                                productName: crop.name || 'Unassigned Crop',
+                                category: crop.category || 'Uncategorized',
+                                trayCount: 0,
+                                yieldMinOz: 0,
+                                yieldMaxOz: 0,
+                                yieldMidOz: 0,
+                                whslMin: proj.whslMinRate,
+                                whslMax: proj.whslMaxRate,
+                                retailMin: proj.retailMinRate,
+                                retailMax: proj.retailMaxRate,
+                                wholesaleMin: 0,
+                                wholesaleMax: 0,
+                                wholesaleMid: 0,
+                                retailMinTotal: 0,
+                                retailMaxTotal: 0,
+                                retailMid: 0
+                            });
+                        }
+
+                        const entry = map.get(key);
+                        entry.trayCount += 1;
+                        entry.yieldMinOz += proj.yieldMinOz;
+                        entry.yieldMaxOz += proj.yieldMaxOz;
+                        entry.yieldMidOz += proj.yieldMidOz;
+                        entry.wholesaleMin += proj.wholesaleMin;
+                        entry.wholesaleMax += proj.wholesaleMax;
+                        entry.wholesaleMid += proj.wholesaleMid;
+                        entry.retailMinTotal += proj.retailMin;
+                        entry.retailMaxTotal += proj.retailMax;
+                        entry.retailMid += proj.retailMid;
+                    }
+
+                    return Array.from(map.values())
+                        .map(item => ({
+                            ...item,
+                            retailMin: item.retailMinTotal,
+                            retailMax: item.retailMaxTotal
+                        }))
+                        .sort((a, b) => b.retailMid - a.retailMid);
+                },
+
+                get projectionsByDateRange() {
+                    const now = new Date();
+                    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    const msPerDay = 1000 * 60 * 60 * 24;
+
+                    const buckets = [
+                        { key: '0-7', label: 'Next 7 Days', dateSpan: '0–7 days out', minDays: -999, maxDays: 7, trayCount: 0, yieldMinOz: 0, yieldMaxOz: 0, yieldMidOz: 0, wholesaleMin: 0, wholesaleMax: 0, wholesaleMid: 0, retailMin: 0, retailMax: 0, retailMid: 0, cropsSet: new Set() },
+                        { key: '8-14', label: 'Days 8–14', dateSpan: '1–2 weeks out', minDays: 8, maxDays: 14, trayCount: 0, yieldMinOz: 0, yieldMaxOz: 0, yieldMidOz: 0, wholesaleMin: 0, wholesaleMax: 0, wholesaleMid: 0, retailMin: 0, retailMax: 0, retailMid: 0, cropsSet: new Set() },
+                        { key: '15-30', label: 'Days 15–30', dateSpan: '2–4 weeks out', minDays: 15, maxDays: 30, trayCount: 0, yieldMinOz: 0, yieldMaxOz: 0, yieldMidOz: 0, wholesaleMin: 0, wholesaleMax: 0, wholesaleMid: 0, retailMin: 0, retailMax: 0, retailMid: 0, cropsSet: new Set() },
+                        { key: '31+', label: '31+ Days', dateSpan: 'Beyond 30 days', minDays: 31, maxDays: 99999, trayCount: 0, yieldMinOz: 0, yieldMaxOz: 0, yieldMidOz: 0, wholesaleMin: 0, wholesaleMax: 0, wholesaleMid: 0, retailMin: 0, retailMax: 0, retailMid: 0, cropsSet: new Set() }
+                    ];
+
+                    for (const b of this.filteredActiveProjectionBatches) {
+                        const hDate = this.getBatchHarvestDateObj(b);
+                        const daysOut = hDate ? Math.ceil((hDate - startOfToday) / msPerDay) : 0;
+                        const proj = this.calculateBatchProjection(b);
+
+                        const targetBucket = buckets.find(bk => daysOut >= bk.minDays && daysOut <= bk.maxDays) || buckets[0];
+                        targetBucket.trayCount += 1;
+                        targetBucket.yieldMinOz += proj.yieldMinOz;
+                        targetBucket.yieldMaxOz += proj.yieldMaxOz;
+                        targetBucket.yieldMidOz += proj.yieldMidOz;
+                        targetBucket.wholesaleMin += proj.wholesaleMin;
+                        targetBucket.wholesaleMax += proj.wholesaleMax;
+                        targetBucket.wholesaleMid += proj.wholesaleMid;
+                        targetBucket.retailMin += proj.retailMin;
+                        targetBucket.retailMax += proj.retailMax;
+                        targetBucket.retailMid += proj.retailMid;
+                        if (b.crops?.name) targetBucket.cropsSet.add(b.crops.name);
+                    }
+
+                    return buckets
+                        .filter(bk => bk.trayCount > 0)
+                        .map(bk => ({
+                            ...bk,
+                            cropsList: Array.from(bk.cropsSet).join(', ')
+                        }));
+                },
+
+                formatCurrency(val) {
+                    const num = Number(val) || 0;
+                    return '$' + num.toFixed(2);
+                },
+
+                formatRateRange(minR, maxR) {
+                    if (minR === maxR) return `$${minR.toFixed(2)}`;
+                    return `$${minR.toFixed(2)}–$${maxR.toFixed(2)}`;
+                },
+
                 addDays(dateInput, days) {
                     if (!dateInput || days == null || isNaN(days)) return null;
                     const d = new Date(dateInput);
                     if (isNaN(d.getTime())) return null;
                     d.setDate(d.getDate() + Number(days));
                     return d;
+                },
+
+                getBatchHarvestDateObj(batch) {
+                    if (!batch) return null;
+                    if (batch.target_harvest_date) {
+                        const d = new Date(batch.target_harvest_date);
+                        if (!isNaN(d.getTime())) return d;
+                    }
+                    if (!batch.sown_date) return null;
+                    const minTotal = (batch.crops?.germination_days ?? 0) + (batch.crops?.grow_out_days ?? 0);
+                    return this.addDays(batch.sown_date, minTotal);
                 },
 
                 formatShortDate(dateInput) {
@@ -685,7 +1123,6 @@
 
                 async uncoverBatch(batch) {
                     const nowIso = new Date().toISOString();
-                    // Popcorn Shoots stay in dark (grow_out_days === 0)
                     const isDarkCrop = batch.crops?.grow_out_days === 0;
                     const { error } = await supabaseClient.from('batches').update({
                         status: 'lit',
